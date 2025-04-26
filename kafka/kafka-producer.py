@@ -78,13 +78,13 @@ def main():
     # Load and prepare each dataset
     iot_df = load_and_prepare(IOT_CSV, 'Timestamp')
     scada_df = load_and_prepare(SCADA_CSV, 'Timestamp')
-    # mes_df = load_and_prepare(MES_CSV, 'Timestamp')
+    mes_df = load_and_prepare(MES_CSV, 'Timestamp')
 
     # Create and start threads for each stream
     threads = [
         threading.Thread(target=stream_data, args=(producer, iot_df, IOT_TOPIC, 10)),            # every 1 minute
         threading.Thread(target=stream_data, args=(producer, scada_df, SCADA_TOPIC, 30)),    # every 15 minutes
-        # threading.Thread(target=stream_data, args=(producer, mes_df, MES_TOPIC, 60)),        # every 60 minutes
+        threading.Thread(target=stream_data, args=(producer, mes_df, MES_TOPIC, 60)),        # every 60 minutes
     ]
 
     for t in threads:

@@ -228,7 +228,7 @@ def forecast_status(req: ForecastRequest):
         ps = status_clf.predict_proba(feats)[0]
         status = en_status.inverse_transform([np.argmax(ps)])[0]
         # results.append({'Machine_ID': mid, 'Machine_Status': status, 'Alarm_Code': alarm})
-        results = {'Machine_ID': mid, 'Machine_Status': status}
+        results = {'Machine_ID': mid, 'Machine_Status': status, 'current': state[mid]['Machine_Status']}
         # for ts in times:
         print(f"Forecast_status generated for {req.machine_id} with status {status}")
     return results
@@ -252,7 +252,7 @@ def forecast_alarm(req: ForecastRequest):
         pa = alarm_clf.predict_proba(feats)[0]
         alarm = en_alarm.inverse_transform([np.argmax(pa)])[0]
         # results.append({'Machine_ID': mid, 'Machine_Status': status, 'Alarm_Code': alarm})
-        results = {'Machine_ID': mid, 'Alarm_Code': alarm}
+        results = {'Machine_ID': mid, 'Alarm_Code': alarm, "current": state[mid]['Alarm_Code']}
         # for ts in times:
         print(f"Forecast_alarm generated for {req.machine_id} with alarm {alarm}")
     return results
