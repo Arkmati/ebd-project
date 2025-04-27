@@ -33,12 +33,12 @@ HIST_MES   = '../generated_data/historical-mes.csv'
 # ----------------------------------------
 # 1. TRAINING: load historical data & init online regressor
 # ----------------------------------------
-print("Loading historical SCADA, IOT and MES data...")
+print("Loading historical SCADA, IOT and MES data for power consumption regressor...")
 scada = pd.read_csv(HIST_SCADA, parse_dates=['Timestamp'], keep_default_na=False)
 iot   = pd.read_csv(HIST_IOT,   parse_dates=['Timestamp'], keep_default_na=False)
 mes   = pd.read_csv(HIST_MES,   parse_dates=['Timestamp'], keep_default_na=False)
 
-print("Merging dataframes on Timestamp & Machine_ID...")
+print("Merging dataframes on Timestamp & Machine_ID for power consumption regressor...")
 data = (
     scada.set_index(['Timestamp','Machine_ID'])
          .join(iot.set_index(['Timestamp','Machine_ID']), how='outer')
@@ -70,7 +70,7 @@ def load_or_fit_encoder(path, series):
 # en_alarm,   data['Alarm_enc']       = fit_encoder(data['Alarm_Code'])
 
 # encode categories
-print("Encoding categorical features...")
+print("Encoding categorical features for power consumption regressor...")
 en_machine, data['Machine_ID_enc'] = load_or_fit_encoder(ENC_MACHINE_PATH, data['Machine_ID'])
 en_status,  data['Status_enc']      = load_or_fit_encoder(ENC_STATUS_PATH,  data['Machine_Status'])
 en_alarm,   data['Alarm_enc']       = load_or_fit_encoder(ENC_ALARM_PATH,   data['Alarm_Code'])
@@ -87,7 +87,7 @@ feature_cols = [
 X = data[feature_cols].values
 y = data['Power_Consumption_kW'].values
 
-print("Initializing or loading online SGDRegressor...")
+print("Initializing or loading online SGDRegressor for power consumption regressor...")
 if os.path.exists(POWER_MODEL_PATH):
     reg = joblib.load(POWER_MODEL_PATH)
     print("Loaded persisted power regressor.")
@@ -112,18 +112,18 @@ def build_scaled_regressor(X, y):
 if os.path.exists(POWER_MODEL2_PATH) and os.path.exists(SCALAR2_PATH):
     scaler = joblib.load(SCALAR2_PATH)
     reg2 = joblib.load(POWER_MODEL2_PATH)
-    print("Loaded persisted scaled regressor with corresponding scaler")
+    print("Loaded persisted power scaled regressor with corresponding scaler")
 else:
-    print("Initializing scaled regressor reg2...")
+    print("Initializing power scaled regressor reg2...")
     scaler, reg2 = build_scaled_regressor(X, y)
     joblib.dump(scaler, SCALAR2_PATH)
     joblib.dump(reg2, POWER_MODEL2_PATH)
-    print("Initialized and bootstrapped new scaled regressor.")
+    print("Initialized and bootstrapped new power scaled regressor.")
 
 
 if os.path.exists(POWER_PIPELINE_PATH):
     reg3 = joblib.load(POWER_PIPELINE_PATH)
-    print("Loaded persisted pipeline regressor.")
+    print("Loaded persisted power pipeline regressor.")
 else:
     reg3 = make_pipeline(
         StandardScaler(),
@@ -135,7 +135,7 @@ else:
     # bootstrap pipeline reg3
     reg3.fit(X, y)
     joblib.dump(reg3, POWER_PIPELINE_PATH)
-    print("Initialized and bootstrapped new pipeline regressor.")
+    print("Initialized and bootstrapped new power pipeline regressor.")
 
 
 # print("Initializing online SGDRegressor and bootstrapping on historical data...")
@@ -165,9 +165,9 @@ def load_state(path):
     if os.path.exists(path):
         with open(path, 'rb') as f:
             st = pickle.load(f)
-        print(f"Loaded persisted state ({len(st)} machines)")
+        print(f"Loaded persisted state ({len(st)} machines) for power consumption regressor")
         return st
-    print("Init empty state buffer")
+    print("Init empty state buffer for power consumption regressor")
     return {}
 
 state = load_state(STATE_PATH)
@@ -179,7 +179,7 @@ def persist_all():
     joblib.dump(reg3, POWER_PIPELINE_PATH)
     with open(STATE_PATH, 'wb') as f:
         pickle.dump(state, f)
-    print("Persisted all models and state")
+    print("Persisted all models and state for power consumption regressor")
 
 # ----------------------------------------
 # 2. STREAMING: Kafka consumer + online update
@@ -193,17 +193,17 @@ def kafka_consumer_loop():
         group_id='online-power',
         value_deserializer=lambda m: json.loads(m.decode('utf-8'))
     )
-    print("Kafka consumer started on topics: iot-stream, scada-stream, mes-stream")
+    print("Kafka consumer for power consumption regressor started on topics: iot-stream, scada-stream, mes-stream")
     for msg in consumer:
         rec = msg.value
         mid = rec['Machine_ID']
         topic = msg.topic
         if mid == "Machine_1":
-            print(f"Received message on {topic} for {mid}: {rec}")
+            print(f"Received message on {topic} for {mid}: {rec} for power consumption regressor")
         # print(f"Received message on {topic} for {mid}: {rec}")
         if mid not in state:
             state[mid] = {}
-            print(f"Initialized state for Machine_ID {mid}")
+            print(f"Initialized state for Machine_ID {mid} for power consumption regressor")
 
         state[mid].update(rec)
 
@@ -293,7 +293,7 @@ def forecast_power(req: ForecastRequest):
         pred = round(reg.predict(feats)[0], 2)
         pred2 = round(reg2.predict(scaler.transform(feats))[0], 2)
         pred3 = round(reg3.predict(feats)[0], 2)
-        print(f"Forecast_status generated for {req.machine_id} with power value: {pred:.2f}")
+        print(f"Forecast_power generated for {req.machine_id} with power value: {pred:.2f}")
         result = {'Machine_ID': mid, 'Predicted_Power_kW': float(pred), "current":state[mid]['Power_Consumption_kW'],
                   "additional_predictions":{"pred1":pred, "pred2": pred2, "pred3": pred3}}
     return result

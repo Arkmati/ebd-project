@@ -25,14 +25,14 @@ STATE_PATH        = os.path.join(MODEL_DIR, 'state.pkl')
 # ----------------------------------------
 # 1. TRAINING: load historical data and initialize online classifiers
 # ----------------------------------------
-print("Loading historical SCADA and IoT data...")
+print("Loading historical SCADA and IoT data for status and alarm classifiers...")
 scada = pd.read_csv(
     '../generated_data/historical-scada.csv', parse_dates=['Timestamp'], keep_default_na=False, na_values=[]
 )
 iot = pd.read_csv(
     '../generated_data/historical-iot.csv', parse_dates=['Timestamp'], keep_default_na=False, na_values=[]
 )
-print("Merging SCADA and IoT dataframes...")
+print("Merging SCADA and IoT dataframes for status and alarm classifiers...")
 data = (
     scada.set_index(['Timestamp', 'Machine_ID'])
          .join(iot.set_index(['Timestamp', 'Machine_ID']), how='outer')
@@ -62,44 +62,44 @@ data.ffill(inplace=True)
 
 
 
-print("Encoding labels and preparing features or loading persisted encoders...")
+print("Encoding labels and preparing features or loading persisted encoders for status and alarm classifiers...")
 # Machine encoder
 if os.path.exists(ENC_MACHINE_PATH):
     en_machine = joblib.load(ENC_MACHINE_PATH)
     data['Machine_ID_enc'] = en_machine.transform(data['Machine_ID'])
-    print(f"Loaded persisted encoder for Machine_ID with {len(en_machine.classes_)} classes.")
+    print(f"Loaded persisted encoder for Machine_ID with {len(en_machine.classes_)} classes for status and alarm classifiers.")
 else:
     en_machine = LabelEncoder()
     data['Machine_ID_enc'] = en_machine.fit_transform(data['Machine_ID'])
     joblib.dump(en_machine, ENC_MACHINE_PATH)
-    print(f"Saved new encoder for Machine_ID with {len(en_machine.classes_)} classes.")
+    print(f"Saved new encoder for Machine_ID with {len(en_machine.classes_)} classes for status and alarm classifiers.")
 # Status encoder
 if os.path.exists(ENC_STATUS_PATH):
     en_status = joblib.load(ENC_STATUS_PATH)
     data['Status_enc'] = en_status.transform(data['Machine_Status'])
-    print(f"Loaded persisted encoder for Machine_Status with {len(en_status.classes_)} classes.")
+    print(f"Loaded persisted encoder for Machine_Status with {len(en_status.classes_)} classes for status and alarm classifiers.")
 else:
     en_status = LabelEncoder()
     data['Status_enc'] = en_status.fit_transform(data['Machine_Status'])
     joblib.dump(en_status, ENC_STATUS_PATH)
-    print(f"Saved new encoder for Machine_Status with {len(en_status.classes_)} classes.")
+    print(f"Saved new encoder for Machine_Status with {len(en_status.classes_)} classes for status and alarm classifiers.")
 # Alarm encoder
 if os.path.exists(ENC_ALARM_PATH):
     en_alarm = joblib.load(ENC_ALARM_PATH)
     data['Alarm_enc'] = en_alarm.transform(data['Alarm_Code'])
-    print(f"Loaded persisted encoder for Alarm_Code with {len(en_alarm.classes_)} classes.")
+    print(f"Loaded persisted encoder for Alarm_Code with {len(en_alarm.classes_)} classes for status and alarm classifiers.")
 else:
     en_alarm = LabelEncoder()
     data['Alarm_enc'] = en_alarm.fit_transform(data['Alarm_Code'])
     joblib.dump(en_alarm, ENC_ALARM_PATH)
-    print(f"Saved new encoder for Alarm_Code with {len(en_alarm.classes_)} classes.")
+    print(f"Saved new encoder for Alarm_Code with {len(en_alarm.classes_)} classes for status and alarm classifiers.")
 
 feature_cols = ['Machine_ID_enc','Power_Consumption_kW','Temperature_C','Vibration_mm_s','Pressure_bar']
 X = data[feature_cols].values
 y_status = data['Status_enc'].values
 y_alarm  = data['Alarm_enc'].values
 
-print("Initializing or loading online SGD classifiers...")
+print("Initializing or loading online SGD classifiers for status and alarm...")
 # Status classifier
 if os.path.exists(STATUS_MODEL_PATH):
     print("Found and hence loading persisted status classifier...")
@@ -119,16 +119,16 @@ else:
     alarm_clf = SGDClassifier(loss='log_loss', max_iter=1, tol=None, warm_start=True)
     alarm_clf.partial_fit(X, y_alarm, classes=np.unique(y_alarm))
     joblib.dump(alarm_clf, ALARM_MODEL_PATH)
-print("Classifier initialization complete.")
+print("Status and Alarm Classifier initialization complete.")
 
 # Load or initialize state
 if os.path.exists(STATE_PATH):
     with open(STATE_PATH, 'rb') as f:
         state = pickle.load(f)
-    print(f"Loaded persisted state for {len(state)} machines.")
+    print(f"Loaded persisted state for {len(state)} machines for status and alarm forecaster.")
 else:
     state = {}
-    print("Initialized empty state.")
+    print("Initialized empty state for status and alarm forecaster.")
 
 
 def persist_all():
@@ -136,7 +136,7 @@ def persist_all():
     joblib.dump(alarm_clf, ALARM_MODEL_PATH)
     with open(STATE_PATH, 'wb') as f:
         pickle.dump(state, f)
-    print("Persisted classifiers and state.")
+    print("Persisted classifiers and state for status and alarm forecaster.")
 
 # ----------------------------------------
 # 2. STREAMING CONSUMER: inference + online update
@@ -150,7 +150,7 @@ def kafka_consumer_loop():
         group_id='online-status-alarm',
         value_deserializer=lambda m: json.loads(m.decode('utf-8'))
     )
-    print("Kafka consumer started, listening to topics: iot-stream, scada-stream")
+    print("Kafka consumer started for status and alarm forecaster, listening to topics: iot-stream, scada-stream")
     for message in consumer:
         record = message.value
         mid = record['Machine_ID']
@@ -158,7 +158,7 @@ def kafka_consumer_loop():
         # print(f"Received message on {topic} for {mid}: {record}")
         if mid not in state:
             state[mid] = {}
-            print(f"Initialized state for Machine_ID {mid}")
+            print(f"Initialized state for Machine_ID {mid} status and alarm forecaster")
         state[mid].update(record)
         # if topic == 'scada-stream':
         required = ['Power_Consumption_kW', 'Temperature_C', 'Vibration_mm_s', 'Pressure_bar']
