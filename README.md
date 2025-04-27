@@ -6,3 +6,7 @@ docker-compose -f docker-compose.yml -f docker-compose-kafka-nifi.yml -f docker-
 
 ## Access Superset at http://localhost:8088/superset
 ## Access Starocks at http://localhost:8030/
+
+
+## To run all forecasting (classification and regression) models
+python3 app.py
