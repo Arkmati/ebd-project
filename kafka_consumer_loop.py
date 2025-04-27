@@ -62,7 +62,7 @@ state = load_state(STATE_PATH)
 
 def kafka_consumer_loop():
     consumer = KafkaConsumer(
-        'iot-data', 'scada-data', 'mes-data',
+        'iot-stream', 'scada-stream', 'mes-stream',
         bootstrap_servers=['localhost:9092'],
         auto_offset_reset='earliest',
         group_id='online-processor',
@@ -80,13 +80,16 @@ def kafka_consumer_loop():
             state[mid] = {}
             print(f"Initialized state for Machine_ID {mid} for power consumption regressor")
 
-        if mid == "Machine_1":
-            print(f"event:: {topic} state for {mid} before updates as {state[mid]}")
+        if "Alarm_Code" in rec and rec['Alarm_Code'] == "":
+            rec['Alarm_Code'] = "None"
+
+        # if mid == "Machine_1":
+        #     print(f"event:: {topic} state for {mid} before updates as {state[mid]}")
 
         state[mid].update(rec)
 
-        if mid == "Machine_1":
-            print(f"event:: {topic} state for {mid} post updates as {state[mid]}")
+        # if mid == "Machine_1":
+        #     print(f"event:: {topic} state for {mid} post updates as {state[mid]}")
 
         process_status_alarm_style(rec, mid, topic)
         process_power_consumption_style(rec, mid, topic)

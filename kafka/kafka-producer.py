@@ -1,28 +1,3 @@
-# import json
-# from kafka3 import KafkaProducer
-# import time
-#
-# def create_producer(broker_url):
-#     """Create and configure a Kafka producer."""
-#     producer = KafkaProducer(bootstrap_servers=[broker_url])
-#     return producer
-# def send_messages(producer, topic, messages):
-#     """Send messages to a Kafka topic."""
-#     for message in messages:
-#         producer.send(topic, json.dumps(message).encode('utf-8')) # messages must be bytes
-#         time.sleep(1) # Simulate time between sends
-#     producer.flush()
-#
-# # Kafka broker URL
-# broker = 'localhost:9092'
-# topic = 'my-topic'
-# messages = [{"Machine_ID":"Machine_1", "Timestamp":"2024-01-15 00:00:00", "Temperature_C":77.81,"Vibration_mm_s":1.99,"Pressure_bar":5.90}]
-#
-# if __name__ == "__main__":
-#     producer = create_producer(broker)
-#     send_messages(producer, topic, messages)
-
-
 import json
 import time
 import threading
@@ -78,6 +53,8 @@ def main():
     # Load and prepare each dataset
     iot_df = load_and_prepare(IOT_CSV, 'Timestamp')
     scada_df = load_and_prepare(SCADA_CSV, 'Timestamp')
+    scada_df['Alarm_Code'] = scada_df['Alarm_Code'].replace('None', '')
+
     mes_df = load_and_prepare(MES_CSV, 'Timestamp')
 
     # Create and start threads for each stream
