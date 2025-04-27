@@ -14,7 +14,7 @@ import uvicorn
 from pydantic import BaseModel
 
 
-MODEL_DIR = '../stored-models/status-alarm'
+MODEL_DIR = 'stored-models/status-alarm'
 STATUS_MODEL_PATH = os.path.join(MODEL_DIR, 'status_clf.pkl')
 ALARM_MODEL_PATH  = os.path.join(MODEL_DIR, 'alarm_clf.pkl')
 ENC_MACHINE_PATH  = os.path.join(MODEL_DIR, 'en_machine.pkl')
@@ -27,10 +27,10 @@ STATE_PATH        = os.path.join(MODEL_DIR, 'state.pkl')
 # ----------------------------------------
 print("Loading historical SCADA and IoT data for status and alarm classifiers...")
 scada = pd.read_csv(
-    '../generated_data/historical-scada.csv', parse_dates=['Timestamp'], keep_default_na=False, na_values=[]
+    'generated_data/historical-scada.csv', parse_dates=['Timestamp'], keep_default_na=False, na_values=[]
 )
 iot = pd.read_csv(
-    '../generated_data/historical-iot.csv', parse_dates=['Timestamp'], keep_default_na=False, na_values=[]
+    'generated_data/historical-iot.csv', parse_dates=['Timestamp'], keep_default_na=False, na_values=[]
 )
 print("Merging SCADA and IoT dataframes for status and alarm classifiers...")
 data = (
@@ -204,59 +204,59 @@ threading.Thread(target=kafka_consumer_loop, daemon=True, name='KafkaConsumer').
 # ----------------------------------------
 # 3. REST API for on-demand forecasting
 # ----------------------------------------
-app = FastAPI()
-
-class ForecastRequest(BaseModel):
-    machine_id: str
-
-@app.post('/forecast-status')
-def forecast_status(req: ForecastRequest):
-    print(f"forecast_status request received: {req}")
-    mid = req.machine_id
-    if mid not in state or not all(
-            k in state[mid] for k in ['Power_Consumption_kW', 'Temperature_C', 'Vibration_mm_s', 'Pressure_bar']):
-        print(f"Missing state for {mid} for forecast status request")
-        results = {'Machine_ID': mid, 'Machine_Status': None, 'Alarm_Code': None}
-    else:
-        feats = np.array([
-            en_machine.transform([mid])[0],
-            state[mid]['Power_Consumption_kW'],
-            state[mid]['Temperature_C'],
-            state[mid]['Vibration_mm_s'],
-            state[mid]['Pressure_bar']
-        ]).reshape(1, -1)
-        ps = status_clf.predict_proba(feats)[0]
-        status = en_status.inverse_transform([np.argmax(ps)])[0]
-        # results.append({'Machine_ID': mid, 'Machine_Status': status, 'Alarm_Code': alarm})
-        results = {'Machine_ID': mid, 'Machine_Status': status, 'current': state[mid]['Machine_Status']}
-        # for ts in times:
-        print(f"Forecast_status generated for {req.machine_id} with status {status}")
-    return results
-
-@app.post('/forecast-alarm')
-def forecast_alarm(req: ForecastRequest):
-    print(f"forecast_alarm request received: {req}")
-    mid = req.machine_id
-    if mid not in state or not all(
-            k in state[mid] for k in ['Power_Consumption_kW', 'Temperature_C', 'Vibration_mm_s', 'Pressure_bar']):
-        print(f"Missing state for {mid} for forecast alarm request")
-        results = {'Machine_ID': mid, 'Machine_Status': None, 'Alarm_Code': None}
-    else:
-        feats = np.array([
-            en_machine.transform([mid])[0],
-            state[mid]['Power_Consumption_kW'],
-            state[mid]['Temperature_C'],
-            state[mid]['Vibration_mm_s'],
-            state[mid]['Pressure_bar']
-        ]).reshape(1, -1)
-        pa = alarm_clf.predict_proba(feats)[0]
-        alarm = en_alarm.inverse_transform([np.argmax(pa)])[0]
-        # results.append({'Machine_ID': mid, 'Machine_Status': status, 'Alarm_Code': alarm})
-        results = {'Machine_ID': mid, 'Alarm_Code': alarm, "current": state[mid]['Alarm_Code']}
-        # for ts in times:
-        print(f"Forecast_alarm generated for {req.machine_id} with alarm {alarm}")
-    return results
-
-if __name__ == '__main__':
-    print("Starting FastAPI app on port 8000...")
-    uvicorn.run(app, host='0.0.0.0', port=8000)
+# app = FastAPI()
+#
+# class ForecastRequest(BaseModel):
+#     machine_id: str
+#
+# @app.post('/forecast-status')
+# def forecast_status(req: ForecastRequest):
+#     print(f"forecast_status request received: {req}")
+#     mid = req.machine_id
+#     if mid not in state or not all(
+#             k in state[mid] for k in ['Power_Consumption_kW', 'Temperature_C', 'Vibration_mm_s', 'Pressure_bar']):
+#         print(f"Missing state for {mid} for forecast status request")
+#         results = {'Machine_ID': mid, 'Machine_Status': None, 'Alarm_Code': None}
+#     else:
+#         feats = np.array([
+#             en_machine.transform([mid])[0],
+#             state[mid]['Power_Consumption_kW'],
+#             state[mid]['Temperature_C'],
+#             state[mid]['Vibration_mm_s'],
+#             state[mid]['Pressure_bar']
+#         ]).reshape(1, -1)
+#         ps = status_clf.predict_proba(feats)[0]
+#         status = en_status.inverse_transform([np.argmax(ps)])[0]
+#         # results.append({'Machine_ID': mid, 'Machine_Status': status, 'Alarm_Code': alarm})
+#         results = {'Machine_ID': mid, 'Machine_Status': status, 'current': state[mid]['Machine_Status']}
+#         # for ts in times:
+#         print(f"Forecast_status generated for {req.machine_id} with status {status}")
+#     return results
+#
+# @app.post('/forecast-alarm')
+# def forecast_alarm(req: ForecastRequest):
+#     print(f"forecast_alarm request received: {req}")
+#     mid = req.machine_id
+#     if mid not in state or not all(
+#             k in state[mid] for k in ['Power_Consumption_kW', 'Temperature_C', 'Vibration_mm_s', 'Pressure_bar']):
+#         print(f"Missing state for {mid} for forecast alarm request")
+#         results = {'Machine_ID': mid, 'Machine_Status': None, 'Alarm_Code': None}
+#     else:
+#         feats = np.array([
+#             en_machine.transform([mid])[0],
+#             state[mid]['Power_Consumption_kW'],
+#             state[mid]['Temperature_C'],
+#             state[mid]['Vibration_mm_s'],
+#             state[mid]['Pressure_bar']
+#         ]).reshape(1, -1)
+#         pa = alarm_clf.predict_proba(feats)[0]
+#         alarm = en_alarm.inverse_transform([np.argmax(pa)])[0]
+#         # results.append({'Machine_ID': mid, 'Machine_Status': status, 'Alarm_Code': alarm})
+#         results = {'Machine_ID': mid, 'Alarm_Code': alarm, "current": state[mid]['Alarm_Code']}
+#         # for ts in times:
+#         print(f"Forecast_alarm generated for {req.machine_id} with alarm {alarm}")
+#     return results
+#
+# if __name__ == '__main__':
+#     print("Starting FastAPI app on port 8000...")
+#     uvicorn.run(app, host='0.0.0.0', port=8000)

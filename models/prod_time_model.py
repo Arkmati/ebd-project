@@ -14,7 +14,7 @@ from fastapi import FastAPI, HTTPException
 import uvicorn
 from pydantic import BaseModel
 
-MODEL_DIR           = '../stored-models/prod-time'
+MODEL_DIR           = 'stored-models/prod-time'
 PROD_TIME_MODEL_PATH    = os.path.join(MODEL_DIR, 'prod_time_reg.pkl')
 PROD_TIME_MODEL2_PATH    = os.path.join(MODEL_DIR, 'prod_time_reg2.pkl')
 PROD_TIME_PIPELINE_PATH    = os.path.join(MODEL_DIR, 'prod_time_reg-pipeline.pkl')
@@ -25,9 +25,9 @@ ENC_ALARM_PATH      = os.path.join(MODEL_DIR, 'en_alarm.pkl')
 STATE_PATH          = os.path.join(MODEL_DIR, 'state.pkl')
 
 # --- Paths to historical data ------------------------------------------------
-HIST_SCADA = '../generated_data/historical-scada.csv'
-HIST_IOT   = '../generated_data/historical-iot.csv'
-HIST_MES   = '../generated_data/historical-mes.csv'
+HIST_SCADA = 'generated_data/historical-scada.csv'
+HIST_IOT   = 'generated_data/historical-iot.csv'
+HIST_MES   = 'generated_data/historical-mes.csv'
 
 # ----------------------------------------
 # 1. TRAINING: load data & bootstrap regressors
@@ -221,36 +221,36 @@ threading.Thread(target=kafka_consumer_loop, daemon=True).start()
 # ----------------------------------------
 # 3. REST API for on-demand forecast
 # ----------------------------------------
-app = FastAPI()
-class ForecastRequest(BaseModel):
-    machine_id: str
-
-@app.post('/forecast-production-time')
-def forecast_power(req: ForecastRequest):
-    mid = req.machine_id
-    if mid not in state or not all(
-       k in state[mid] for k in ['Temperature_C','Vibration_mm_s','Pressure_bar',
-                                  'Power_Consumption_kW','Machine_Status','Alarm_Code',
-                                  'Units_Produced','Defective_Units','Production_Time_min']):
-        print(f"Missing state for {mid} for forecast production time request request")
-        result = {'Machine_ID': mid, 'Predicted_Production_Time_min': None}
-    else:
-        raw = state.get(mid)
-        dr = raw['Defective_Units'] / raw['Units_Produced']
-        th = raw['Units_Produced'] / raw['Production_Time_min']
-        ee = (raw['Power_Consumption_kW'] * (raw['Production_Time_min'] / 60)) / raw['Units_Produced']
-        feats = np.array([
-            en_machine.transform([mid])[0], raw['Temperature_C'], raw['Vibration_mm_s'], raw['Pressure_bar'],
-            raw['Power_Consumption_kW'], en_status.transform([raw['Machine_Status']])[0],
-            en_alarm.transform([raw['Alarm_Code']])[0], dr, th, ee
-        ]).reshape(1, -1)
-        pred = round(reg.predict(feats)[0])
-        pred2 = round(reg2.predict(scaler.transform(feats))[0])
-        pred3 = round(reg3.predict(feats)[0])
-        print(f"Forecast_production time produced generated for {req.machine_id} with predicted value: {pred2}")
-        result = {'Machine_ID': mid, 'Predicted_Production_Time_min': pred2, "current":state[mid]['Production_Time_min'],
-                  "additional_predictions":{"pred1":pred, "pred2": pred2, "pred3": pred3}}
-    return result
-
-if __name__=='__main__':
-    uvicorn.run(app, host='0.0.0.0', port=8000)
+# app = FastAPI()
+# class ForecastRequest(BaseModel):
+#     machine_id: str
+#
+# @app.post('/forecast-production-time')
+# def forecast_power(req: ForecastRequest):
+#     mid = req.machine_id
+#     if mid not in state or not all(
+#        k in state[mid] for k in ['Temperature_C','Vibration_mm_s','Pressure_bar',
+#                                   'Power_Consumption_kW','Machine_Status','Alarm_Code',
+#                                   'Units_Produced','Defective_Units','Production_Time_min']):
+#         print(f"Missing state for {mid} for forecast production time request request")
+#         result = {'Machine_ID': mid, 'Predicted_Production_Time_min': None}
+#     else:
+#         raw = state.get(mid)
+#         dr = raw['Defective_Units'] / raw['Units_Produced']
+#         th = raw['Units_Produced'] / raw['Production_Time_min']
+#         ee = (raw['Power_Consumption_kW'] * (raw['Production_Time_min'] / 60)) / raw['Units_Produced']
+#         feats = np.array([
+#             en_machine.transform([mid])[0], raw['Temperature_C'], raw['Vibration_mm_s'], raw['Pressure_bar'],
+#             raw['Power_Consumption_kW'], en_status.transform([raw['Machine_Status']])[0],
+#             en_alarm.transform([raw['Alarm_Code']])[0], dr, th, ee
+#         ]).reshape(1, -1)
+#         pred = round(reg.predict(feats)[0])
+#         pred2 = round(reg2.predict(scaler.transform(feats))[0])
+#         pred3 = round(reg3.predict(feats)[0])
+#         print(f"Forecast_production time produced generated for {req.machine_id} with predicted value: {pred2}")
+#         result = {'Machine_ID': mid, 'Predicted_Production_Time_min': pred2, "current":state[mid]['Production_Time_min'],
+#                   "additional_predictions":{"pred1":pred, "pred2": pred2, "pred3": pred3}}
+#     return result
+#
+# if __name__=='__main__':
+#     uvicorn.run(app, host='0.0.0.0', port=8000)

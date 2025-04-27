@@ -15,7 +15,7 @@ from fastapi import FastAPI, HTTPException
 import uvicorn
 from pydantic import BaseModel
 
-MODEL_DIR           = '../stored-models/power'
+MODEL_DIR           = 'stored-models/power'
 POWER_MODEL_PATH    = os.path.join(MODEL_DIR, 'power_reg.pkl')
 POWER_MODEL2_PATH    = os.path.join(MODEL_DIR, 'power_reg2.pkl')
 POWER_PIPELINE_PATH    = os.path.join(MODEL_DIR, 'power_reg-pipeline.pkl')
@@ -26,9 +26,9 @@ ENC_ALARM_PATH      = os.path.join(MODEL_DIR, 'en_alarm.pkl')
 STATE_PATH          = os.path.join(MODEL_DIR, 'state.pkl')
 
 # --- Paths ------------------------------------------------
-HIST_SCADA = '../generated_data/historical-scada.csv'
-HIST_IOT   = '../generated_data/historical-iot.csv'
-HIST_MES   = '../generated_data/historical-mes.csv'
+HIST_SCADA = 'generated_data/historical-scada.csv'
+HIST_IOT   = 'generated_data/historical-iot.csv'
+HIST_MES   = 'generated_data/historical-mes.csv'
 
 # ----------------------------------------
 # 1. TRAINING: load historical data & init online regressor
@@ -262,41 +262,41 @@ threading.Thread(target=kafka_consumer_loop, daemon=True, name='KafkaConsumer').
 # ----------------------------------------
 # 3. REST API for on-demand forecast
 # ----------------------------------------
-app = FastAPI()
-
-class ForecastRequest(BaseModel):
-    machine_id: str
-
-@app.post('/forecast-power')
-def forecast_power(req: ForecastRequest):
-    mid = req.machine_id
-    if mid not in state or not all(
-       k in state[mid] for k in [
-           'Temperature_C','Vibration_mm_s','Pressure_bar',
-           'Machine_Status','Alarm_Code',
-           'Units_Produced','Production_Time_min'
-       ]):
-        print(f"Missing state for {mid} for forecast power request")
-        result = {'Machine_ID': mid, 'Predicted_Power_kW': None}
-        # raise HTTPException(status_code=404, detail=f"Insufficient state for {mid}")
-    else:
-        feats = np.array([
-            en_machine.transform([mid])[0],
-            state[mid]['Temperature_C'],
-            state[mid]['Vibration_mm_s'],
-            state[mid]['Pressure_bar'],
-            en_status.transform([state[mid]['Machine_Status']])[0],
-            en_alarm.transform([state[mid]['Alarm_Code']])[0],
-            state[mid]['Units_Produced'] / state[mid]['Production_Time_min'],
-            state[mid]['Defective_Units'] / state[mid]['Units_Produced']
-        ]).reshape(1, -1)
-        pred = round(reg.predict(feats)[0], 2)
-        pred2 = round(reg2.predict(scaler.transform(feats))[0], 2)
-        pred3 = round(reg3.predict(feats)[0], 2)
-        print(f"Forecast_power generated for {req.machine_id} with power value: {pred:.2f}")
-        result = {'Machine_ID': mid, 'Predicted_Power_kW': float(pred), "current":state[mid]['Power_Consumption_kW'],
-                  "additional_predictions":{"pred1":pred, "pred2": pred2, "pred3": pred3}}
-    return result
-
-if __name__ == '__main__':
-    uvicorn.run(app, host='0.0.0.0', port=8000)
+# app = FastAPI()
+#
+# class ForecastRequest(BaseModel):
+#     machine_id: str
+#
+# @app.post('/forecast-power')
+# def forecast_power(req: ForecastRequest):
+#     mid = req.machine_id
+#     if mid not in state or not all(
+#        k in state[mid] for k in [
+#            'Temperature_C','Vibration_mm_s','Pressure_bar',
+#            'Machine_Status','Alarm_Code',
+#            'Units_Produced','Production_Time_min'
+#        ]):
+#         print(f"Missing state for {mid} for forecast power request")
+#         result = {'Machine_ID': mid, 'Predicted_Power_kW': None}
+#         # raise HTTPException(status_code=404, detail=f"Insufficient state for {mid}")
+#     else:
+#         feats = np.array([
+#             en_machine.transform([mid])[0],
+#             state[mid]['Temperature_C'],
+#             state[mid]['Vibration_mm_s'],
+#             state[mid]['Pressure_bar'],
+#             en_status.transform([state[mid]['Machine_Status']])[0],
+#             en_alarm.transform([state[mid]['Alarm_Code']])[0],
+#             state[mid]['Units_Produced'] / state[mid]['Production_Time_min'],
+#             state[mid]['Defective_Units'] / state[mid]['Units_Produced']
+#         ]).reshape(1, -1)
+#         pred = round(reg.predict(feats)[0], 2)
+#         pred2 = round(reg2.predict(scaler.transform(feats))[0], 2)
+#         pred3 = round(reg3.predict(feats)[0], 2)
+#         print(f"Forecast_power generated for {req.machine_id} with power value: {pred:.2f}")
+#         result = {'Machine_ID': mid, 'Predicted_Power_kW': float(pred), "current":state[mid]['Power_Consumption_kW'],
+#                   "additional_predictions":{"pred1":pred, "pred2": pred2, "pred3": pred3}}
+#     return result
+#
+# if __name__ == '__main__':
+#     uvicorn.run(app, host='0.0.0.0', port=8000)
