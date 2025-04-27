@@ -153,3 +153,41 @@ docker exec -it kafka kafka-console-consumer \
 --bootstrap-server kafka:9092 \
 --topic mes-data \
 --from-beginning
+
+kafka-console-consumer \
+--bootstrap-server kafka:9092 \
+--topic iot-data \
+--from-beginning \
+--max-messages 1
+
+kafka-console-consumer \
+--bootstrap-server kafka:9092 \
+--topic iot-data \
+--from-beginning \
+--max-messages 1
+
+kafka-console-consumer \
+--bootstrap-server kafka:9092 \
+--topic scada-data \
+--from-beginning \
+--max-messages 1
+
+
+kafka-console-consumer --bootstrap-server kafka:9092 \
+--topic iot-data \
+--offset latest \
+--max-messages 1
+
+kafka-console-consumer --bootstrap-server kafka:9092 \
+--topic scada-data \
+--offset latest \
+--max-messages 1
+--partition 1
+
+kafka-topics --list --bootstrap-server kafka:9092
+kafka-topics --create --topic scada-data --bootstrap-server kafka:9092 --partitions 1 --replication-factor 1
+kafka-topics --create --topic iot-data --bootstrap-server kafka:9092 --partitions 1 --replication-factor 1
+kafka-topics --create --topic mes-data --bootstrap-server kafka:9092 --partitions 1 --replication-factor 1
+kafka-console-consumer --bootstrap-server kafka:9092 --topic scada-data --from-beginning --max-messages 1
+
+kafka-console-consumer --bootstrap-server kafka:9092 --topic mes-data --from-beginning --timeout-ms 15000 --property print.value=true > mes-data-messages.json

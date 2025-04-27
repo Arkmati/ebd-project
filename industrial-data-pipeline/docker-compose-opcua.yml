@@ -1,0 +1,28 @@
+version: '3.8'
+
+services:
+  opcua-server:
+    build: ./opcua-server
+    container_name: opcua-server
+    ports:
+      - "4840:4840"
+    volumes:
+      - ./opcua-server/sensor_data.csv:/app/sensor_data.csv:ro
+      - ./opcua-server/future-stream-scada.csv:/app/future-stream-scada.csv:ro
+    networks:
+      - kafka-nifi-net
+  #  nodered:
+  #    image: nodered/node-red:latest       # Official Node-RED image on Docker Hub
+  #    platform: linux/amd64
+  #    restart: unless-stopped              # Always restart unless explicitly stopped
+  #    ports:
+  #      - "1880:1880"                     # Map host port 1880 to container port 1880
+  #    volumes:
+  #      - ./.node-red:/data  # Bind mount your local flows & settings
+  #    networks:
+  #      - kafka-nifi-net
+
+networks:
+  kafka-nifi-net:
+    external: true
+    name: industrial-data-pipeline_kafka-nifi-net

@@ -16,15 +16,15 @@ services:
     container_name: kafka
     restart: always
     ports:
-      - "9093:9092"
+      - "9093:9093"  # expose PLAINTEXT listener (host access)
     environment:
       KAFKA_BROKER_ID: 1
       KAFKA_ZOOKEEPER_CONNECT: "zookeeper:2181"
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
-      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT
-      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092
-      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,INTERNAL:PLAINTEXT
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9093,INTERNAL://kafka:9092
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9093,INTERNAL://0.0.0.0:9092
+      KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
     volumes:
       - kafka_data:/var/lib/kafka/data
     depends_on:
@@ -32,29 +32,6 @@ services:
     networks:
       - kafka-nifi-net
 
-  nifi:
-    image: apache/nifi:latest
-    container_name: devnifi
-    ports:
-      - "8443:8443"
-    environment:
-      NIFI_WEB_HTTPS_PORT: '8443'
-    volumes:
-      - nifi_data:/opt/nifi/nifi-current
-    restart: unless-stopped
-    networks:
-      - kafka-nifi-net
-
-  nifi-registry:
-    image: apache/nifi-registry:latest
-    container_name: nifi-registry
-    ports:
-      - "18080:18080"
-    volumes:
-      - registry_data:/opt/nifi-registry/nifi-registry-current
-    restart: unless-stopped
-    networks:
-      - kafka-nifi-net
       
   # MinIO Object Storage service
   minio:

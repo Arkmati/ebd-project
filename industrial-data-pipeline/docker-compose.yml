@@ -15,8 +15,10 @@ services:
     volumes:
       - ./starrocks/fe/meta:/data/deploy/starrocks/fe/meta
       - ./starrocks/be/storage:/data/deploy/starrocks/be/storage
+      - ./jars/mysql-connector-j-8.0.33.jar:/data/deploy/starrocks/fe/lib/mysql-connector-j-8.0.33.jar
     environment:
       - FE_CONF=enable_external_catalog=true;persistent_index.enable=true
+      - BE_CONF=tablet_max_versions=10000;exec_mem_limit=2GB
     networks:
       - kafka-nifi-net
 
@@ -52,6 +54,7 @@ services:
       - SPARK_MASTER_URL=spark://spark-master:7077
       - SPARK_WORKER_MEMORY=2G
       - SPARK_WORKER_CORES=2
+      - SPARK_WORKER_HOST=0.0.0.0
       - SPARK_RPC_AUTHENTICATION_ENABLED=no
       - SPARK_RPC_ENCRYPTION_ENABLED=no
       - SPARK_LOCAL_STORAGE_ENCRYPTION_ENABLED=no
@@ -63,6 +66,8 @@ services:
       - ./jars:/extra-jars
     networks:
       - kafka-nifi-net
+    ports:
+      - "8081:8081"
 
   mysql:
     image: mysql:8.0
@@ -81,7 +86,7 @@ services:
       - kafka-nifi-net
 
   jupyter:
-    image: jupyter/pyspark-notebook:latest
+    image: jupyter/pyspark-notebook:spark-3.3.2
     container_name: jupyter
     ports:
       - "8888:8888"
