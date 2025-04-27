@@ -20,7 +20,7 @@ ALARM_MODEL_PATH  = os.path.join(MODEL_DIR, 'alarm_clf.pkl')
 ENC_MACHINE_PATH  = os.path.join(MODEL_DIR, 'en_machine.pkl')
 ENC_STATUS_PATH   = os.path.join(MODEL_DIR, 'en_status.pkl')
 ENC_ALARM_PATH    = os.path.join(MODEL_DIR, 'en_alarm.pkl')
-STATE_PATH        = os.path.join(MODEL_DIR, 'state.pkl')
+# STATE_PATH        = os.path.join(MODEL_DIR, 'state.pkl')
 
 # ----------------------------------------
 # 1. TRAINING: load historical data and initialize online classifiers
@@ -122,84 +122,84 @@ else:
 print("Status and Alarm Classifier initialization complete.")
 
 # Load or initialize state
-if os.path.exists(STATE_PATH):
-    with open(STATE_PATH, 'rb') as f:
-        state = pickle.load(f)
-    print(f"Loaded persisted state for {len(state)} machines for status and alarm forecaster.")
-else:
-    state = {}
-    print("Initialized empty state for status and alarm forecaster.")
+# if os.path.exists(STATE_PATH):
+#     with open(STATE_PATH, 'rb') as f:
+#         state = pickle.load(f)
+#     print(f"Loaded persisted state for {len(state)} machines for status and alarm forecaster.")
+# else:
+#     state = {}
+#     print("Initialized empty state for status and alarm forecaster.")
 
 
 def persist_all():
     joblib.dump(status_clf, STATUS_MODEL_PATH)
     joblib.dump(alarm_clf, ALARM_MODEL_PATH)
-    with open(STATE_PATH, 'wb') as f:
-        pickle.dump(state, f)
+    # with open(STATE_PATH, 'wb') as f:
+    #     pickle.dump(state, f)
     print("Persisted classifiers and state for status and alarm forecaster.")
 
 # ----------------------------------------
 # 2. STREAMING CONSUMER: inference + online update
 # ----------------------------------------
 # state = {}  # holds latest features per machine
-def kafka_consumer_loop():
-    consumer = KafkaConsumer(
-        'iot-stream', 'scada-stream',
-        bootstrap_servers=['localhost:9092'],
-        auto_offset_reset='earliest',
-        group_id='online-status-alarm',
-        value_deserializer=lambda m: json.loads(m.decode('utf-8'))
-    )
-    print("Kafka consumer started for status and alarm forecaster, listening to topics: iot-stream, scada-stream")
-    for message in consumer:
-        record = message.value
-        mid = record['Machine_ID']
-        topic = message.topic
-        # print(f"Received message on {topic} for {mid}: {record}")
-        if mid not in state:
-            state[mid] = {}
-            print(f"Initialized state for Machine_ID {mid} status and alarm forecaster")
-        state[mid].update(record)
-        # if topic == 'scada-stream':
-        required = ['Power_Consumption_kW', 'Temperature_C', 'Vibration_mm_s', 'Pressure_bar']
-        if all(k in state[mid] for k in required):
-            feats = np.array([
-                en_machine.transform([mid])[0],
-                state[mid]['Power_Consumption_kW'],
-                state[mid]['Temperature_C'],
-                state[mid]['Vibration_mm_s'],
-                state[mid]['Pressure_bar']
-            ]).reshape(1, -1)
-            # print(f"Performing inference for {mid} with features {feats.flatten()}")
-            ps = status_clf.predict_proba(feats)[0]
-            pa = alarm_clf.predict_proba(feats)[0]
-            pred_status = en_status.inverse_transform([np.argmax(ps)])[0]
-            pred_alarm = en_alarm.inverse_transform([np.argmax(pa)])[0]
-            # print(f"Predicted for {mid}: Status={pred_status}, Alarm={pred_alarm}")
-
-            status_y = state[mid]['Machine_Status']
-            alarm_y = state[mid]['Alarm_Code']
-            # print(f"Fetched statues {status_y} and alarm {alarm_y}")
-            if "Machine_Status" in record and "Alarm_Code" in record:
-                # Update the model with the true labels
-                status_y = record['Machine_Status']
-                alarm_y = record['Alarm_Code']
-                # print(f"latest values taken from kafka message as status {status_y} and alarm {alarm_y}")
-
-            y_s = en_status.transform([status_y])[0]
-            y_a = en_alarm.transform([alarm_y])[0]
-            status_clf.partial_fit(feats, [y_s])
-            alarm_clf.partial_fit(feats, [y_a])
-            # print(f"Model updated for {mid} with Status={status_y} and Alarm={alarm_y}")
-            if mid == "Machine_1":
-                print(f"event:: {topic} Model updated for {mid} with Status={status_y} and Alarm={alarm_y}, with predicted values: Status={pred_status}, Alarm={pred_alarm}")
-
-        persist_all()
+# def kafka_consumer_loop():
+#     consumer = KafkaConsumer(
+#         'iot-stream', 'scada-stream',
+#         bootstrap_servers=['localhost:9092'],
+#         auto_offset_reset='earliest',
+#         group_id='online-status-alarm',
+#         value_deserializer=lambda m: json.loads(m.decode('utf-8'))
+#     )
+#     print("Kafka consumer started for status and alarm forecaster, listening to topics: iot-stream, scada-stream")
+#     for message in consumer:
+#         record = message.value
+#         mid = record['Machine_ID']
+#         topic = message.topic
+#         # print(f"Received message on {topic} for {mid}: {record}")
+#         if mid not in state:
+#             state[mid] = {}
+#             print(f"Initialized state for Machine_ID {mid} status and alarm forecaster")
+#         state[mid].update(record)
+#         # if topic == 'scada-stream':
+#         required = ['Power_Consumption_kW', 'Temperature_C', 'Vibration_mm_s', 'Pressure_bar']
+#         if all(k in state[mid] for k in required):
+#             feats = np.array([
+#                 en_machine.transform([mid])[0],
+#                 state[mid]['Power_Consumption_kW'],
+#                 state[mid]['Temperature_C'],
+#                 state[mid]['Vibration_mm_s'],
+#                 state[mid]['Pressure_bar']
+#             ]).reshape(1, -1)
+#             # print(f"Performing inference for {mid} with features {feats.flatten()}")
+#             ps = status_clf.predict_proba(feats)[0]
+#             pa = alarm_clf.predict_proba(feats)[0]
+#             pred_status = en_status.inverse_transform([np.argmax(ps)])[0]
+#             pred_alarm = en_alarm.inverse_transform([np.argmax(pa)])[0]
+#             # print(f"Predicted for {mid}: Status={pred_status}, Alarm={pred_alarm}")
+#
+#             status_y = state[mid]['Machine_Status']
+#             alarm_y = state[mid]['Alarm_Code']
+#             # print(f"Fetched statues {status_y} and alarm {alarm_y}")
+#             if "Machine_Status" in record and "Alarm_Code" in record:
+#                 # Update the model with the true labels
+#                 status_y = record['Machine_Status']
+#                 alarm_y = record['Alarm_Code']
+#                 # print(f"latest values taken from kafka message as status {status_y} and alarm {alarm_y}")
+#
+#             y_s = en_status.transform([status_y])[0]
+#             y_a = en_alarm.transform([alarm_y])[0]
+#             status_clf.partial_fit(feats, [y_s])
+#             alarm_clf.partial_fit(feats, [y_a])
+#             # print(f"Model updated for {mid} with Status={status_y} and Alarm={alarm_y}")
+#             if mid == "Machine_1":
+#                 print(f"event:: {topic} Model updated for {mid} with Status={status_y} and Alarm={alarm_y}, with predicted values: Status={pred_status}, Alarm={pred_alarm}")
+#
+#         persist_all()
         # if mid=="Machine_1":
         #     print(f"current state: {state[mid]}")
 
 
-threading.Thread(target=kafka_consumer_loop, daemon=True, name='KafkaConsumer').start()
+# threading.Thread(target=kafka_consumer_loop, daemon=True, name='KafkaConsumer').start()
 
 # ----------------------------------------
 # 3. REST API for on-demand forecasting

@@ -23,7 +23,7 @@ SCALAR2_PATH         = os.path.join(MODEL_DIR, 'scaler2.pkl')
 ENC_MACHINE_PATH    = os.path.join(MODEL_DIR, 'en_machine.pkl')
 ENC_STATUS_PATH     = os.path.join(MODEL_DIR, 'en_status.pkl')
 ENC_ALARM_PATH      = os.path.join(MODEL_DIR, 'en_alarm.pkl')
-STATE_PATH          = os.path.join(MODEL_DIR, 'state.pkl')
+# STATE_PATH          = os.path.join(MODEL_DIR, 'state.pkl')
 
 # --- Paths ------------------------------------------------
 HIST_SCADA = 'generated_data/historical-scada.csv'
@@ -161,103 +161,103 @@ else:
 # reg3.fit(X, y)
 # print("Bootstrapped pipeline regressor reg3.")
 
-def load_state(path):
-    if os.path.exists(path):
-        with open(path, 'rb') as f:
-            st = pickle.load(f)
-        print(f"Loaded persisted state ({len(st)} machines) for power consumption regressor")
-        return st
-    print("Init empty state buffer for power consumption regressor")
-    return {}
-
-state = load_state(STATE_PATH)
+# def load_state(path):
+#     if os.path.exists(path):
+#         with open(path, 'rb') as f:
+#             st = pickle.load(f)
+#         print(f"Loaded persisted state ({len(st)} machines) for power consumption regressor")
+#         return st
+#     print("Init empty state buffer for power consumption regressor")
+#     return {}
+#
+# state = load_state(STATE_PATH)
 
 def persist_all():
     joblib.dump(reg, POWER_MODEL_PATH)
     joblib.dump(scaler, SCALAR2_PATH)
     joblib.dump(reg2, POWER_MODEL2_PATH)
     joblib.dump(reg3, POWER_PIPELINE_PATH)
-    with open(STATE_PATH, 'wb') as f:
-        pickle.dump(state, f)
+    # with open(STATE_PATH, 'wb') as f:
+    #     pickle.dump(state, f)
     print("Persisted all models and state for power consumption regressor")
 
 # ----------------------------------------
 # 2. STREAMING: Kafka consumer + online update
 # ----------------------------------------
 # state = {}
-def kafka_consumer_loop():
-    consumer = KafkaConsumer(
-        'iot-stream', 'scada-stream', 'mes-stream',
-        bootstrap_servers=['localhost:9092'],
-        auto_offset_reset='earliest',
-        group_id='online-power',
-        value_deserializer=lambda m: json.loads(m.decode('utf-8'))
-    )
-    print("Kafka consumer for power consumption regressor started on topics: iot-stream, scada-stream, mes-stream")
-    for msg in consumer:
-        rec = msg.value
-        mid = rec['Machine_ID']
-        topic = msg.topic
-        if mid == "Machine_1":
-            print(f"Received message on {topic} for {mid}: {rec} for power consumption regressor")
-        # print(f"Received message on {topic} for {mid}: {rec}")
-        if mid not in state:
-            state[mid] = {}
-            print(f"Initialized state for Machine_ID {mid} for power consumption regressor")
-
-        state[mid].update(rec)
-
-        # once full feature set is available
-        required = [
-            'Temperature_C','Vibration_mm_s','Pressure_bar', 'Machine_Status',
-            'Alarm_Code', 'Units_Produced','Production_Time_min'
-        ]
-        if all(k in state[mid] for k in required):
-            # build features
-            feats = np.array([
-                en_machine.transform([mid])[0],
-                state[mid]['Temperature_C'],
-                state[mid]['Vibration_mm_s'],
-                state[mid]['Pressure_bar'],
-                en_status.transform([state[mid]['Machine_Status']])[0],
-                en_alarm.transform([state[mid]['Alarm_Code']])[0],
-                state[mid]['Units_Produced']/state[mid]['Production_Time_min'],
-                state[mid]['Defective_Units']/state[mid]['Units_Produced']
-            ]).reshape(1, -1)
-            # print(f"Performing inference for {mid} with features {feats.flatten()}")
-
-            # predict next power
-            pred = round(reg.predict(feats)[0], 2)
-            pred2 = round(reg2.predict(scaler.transform(feats))[0], 2)
-            pred3 = round(reg3.predict(feats)[0], 2)
-            # print(f"event:: {topic} Predicted next power for {mid}: {pred:.2f} kW")
-
-            y_true = state[mid]['Power_Consumption_kW']
-            if topic == 'scada-stream' and 'Power_Consumption_kW' in rec:
-                y_true = rec['Power_Consumption_kW']
-                print(f"event:: {topic} Updated model for {mid} with true power {y_true} as received in scada event")
-            reg.partial_fit(feats, [y_true])
-
-            reg2.partial_fit(scaler.transform(feats), [y_true])
-            # for reg3, step into the pipeline
-            scaled_feats = reg3.named_steps['standardscaler'].transform(feats)
-            reg3.named_steps['sgdregressor'].partial_fit(scaled_feats, [y_true])
-
-
-            # print(f"event:: {topic} Updated model for {mid} with true power {y_true}")
-
-            # update on actual SCADA events
-            # if topic == 'scada-stream' and 'Power_Consumption_kW' in rec:
-            #     y_true = rec['Power_Consumption_kW']
-            #     reg.partial_fit(feats, [y_true])
-            #     print(f"event:: {topic} Updated model for {mid} with true power {y_true}")
-
-            if mid == "Machine_1":
-                print(f"event:: {topic} Model updated for {mid} with power={y_true}, with pred1={pred}, pred2={pred2}, pred3={pred3}")
-
-        persist_all()
-
-threading.Thread(target=kafka_consumer_loop, daemon=True, name='KafkaConsumer').start()
+# def kafka_consumer_loop():
+#     consumer = KafkaConsumer(
+#         'iot-stream', 'scada-stream', 'mes-stream',
+#         bootstrap_servers=['localhost:9092'],
+#         auto_offset_reset='earliest',
+#         group_id='online-power',
+#         value_deserializer=lambda m: json.loads(m.decode('utf-8'))
+#     )
+#     print("Kafka consumer for power consumption regressor started on topics: iot-stream, scada-stream, mes-stream")
+#     for msg in consumer:
+#         rec = msg.value
+#         mid = rec['Machine_ID']
+#         topic = msg.topic
+#         if mid == "Machine_1":
+#             print(f"Received message on {topic} for {mid}: {rec} for power consumption regressor")
+#         # print(f"Received message on {topic} for {mid}: {rec}")
+#         if mid not in state:
+#             state[mid] = {}
+#             print(f"Initialized state for Machine_ID {mid} for power consumption regressor")
+#
+#         state[mid].update(rec)
+#
+#         # once full feature set is available
+#         required = [
+#             'Temperature_C','Vibration_mm_s','Pressure_bar', 'Machine_Status',
+#             'Alarm_Code', 'Units_Produced','Production_Time_min'
+#         ]
+#         if all(k in state[mid] for k in required):
+#             # build features
+#             feats = np.array([
+#                 en_machine.transform([mid])[0],
+#                 state[mid]['Temperature_C'],
+#                 state[mid]['Vibration_mm_s'],
+#                 state[mid]['Pressure_bar'],
+#                 en_status.transform([state[mid]['Machine_Status']])[0],
+#                 en_alarm.transform([state[mid]['Alarm_Code']])[0],
+#                 state[mid]['Units_Produced']/state[mid]['Production_Time_min'],
+#                 state[mid]['Defective_Units']/state[mid]['Units_Produced']
+#             ]).reshape(1, -1)
+#             # print(f"Performing inference for {mid} with features {feats.flatten()}")
+#
+#             # predict next power
+#             pred = round(reg.predict(feats)[0], 2)
+#             pred2 = round(reg2.predict(scaler.transform(feats))[0], 2)
+#             pred3 = round(reg3.predict(feats)[0], 2)
+#             # print(f"event:: {topic} Predicted next power for {mid}: {pred:.2f} kW")
+#
+#             y_true = state[mid]['Power_Consumption_kW']
+#             if topic == 'scada-stream' and 'Power_Consumption_kW' in rec:
+#                 y_true = rec['Power_Consumption_kW']
+#                 print(f"event:: {topic} Updated model for {mid} with true power {y_true} as received in scada event")
+#             reg.partial_fit(feats, [y_true])
+#
+#             reg2.partial_fit(scaler.transform(feats), [y_true])
+#             # for reg3, step into the pipeline
+#             scaled_feats = reg3.named_steps['standardscaler'].transform(feats)
+#             reg3.named_steps['sgdregressor'].partial_fit(scaled_feats, [y_true])
+#
+#
+#             # print(f"event:: {topic} Updated model for {mid} with true power {y_true}")
+#
+#             # update on actual SCADA events
+#             # if topic == 'scada-stream' and 'Power_Consumption_kW' in rec:
+#             #     y_true = rec['Power_Consumption_kW']
+#             #     reg.partial_fit(feats, [y_true])
+#             #     print(f"event:: {topic} Updated model for {mid} with true power {y_true}")
+#
+#             if mid == "Machine_1":
+#                 print(f"event:: {topic} Model updated for {mid} with power={y_true}, with pred1={pred}, pred2={pred2}, pred3={pred3}")
+#
+#         persist_all()
+#
+# threading.Thread(target=kafka_consumer_loop, daemon=True, name='KafkaConsumer').start()
 
 # ----------------------------------------
 # 3. REST API for on-demand forecast

@@ -22,7 +22,7 @@ SCALAR2_PATH         = os.path.join(MODEL_DIR, 'scaler2.pkl')
 ENC_MACHINE_PATH    = os.path.join(MODEL_DIR, 'en_machine.pkl')
 ENC_STATUS_PATH     = os.path.join(MODEL_DIR, 'en_status.pkl')
 ENC_ALARM_PATH      = os.path.join(MODEL_DIR, 'en_alarm.pkl')
-STATE_PATH          = os.path.join(MODEL_DIR, 'state.pkl')
+# STATE_PATH          = os.path.join(MODEL_DIR, 'state.pkl')
 
 # --- Paths to historical data ------------------------------------------------
 HIST_SCADA = 'generated_data/historical-scada.csv'
@@ -138,85 +138,85 @@ else:
 # ----------------------------------------
 # state = {}
 
-def load_state(path):
-    if os.path.exists(path):
-        with open(path, 'rb') as f:
-            st = pickle.load(f)
-        print(f"Loaded persisted state ({len(st)} machines) for production time regressor")
-        return st
-    print("Init empty state buffer for production time regressor")
-    return {}
-
-state = load_state(STATE_PATH)
+# def load_state(path):
+#     if os.path.exists(path):
+#         with open(path, 'rb') as f:
+#             st = pickle.load(f)
+#         print(f"Loaded persisted state ({len(st)} machines) for production time regressor")
+#         return st
+#     print("Init empty state buffer for production time regressor")
+#     return {}
+#
+# state = load_state(STATE_PATH)
 
 def persist_all():
     joblib.dump(reg, PROD_TIME_MODEL_PATH)
     joblib.dump(scaler, SCALAR2_PATH)
     joblib.dump(reg2, PROD_TIME_MODEL2_PATH)
     joblib.dump(reg3, PROD_TIME_PIPELINE_PATH)
-    with open(STATE_PATH, 'wb') as f:
-        pickle.dump(state, f)
+    # with open(STATE_PATH, 'wb') as f:
+    #     pickle.dump(state, f)
     print("Persisted all models and state for production time regressor")
 
-def kafka_consumer_loop():
-    consumer = KafkaConsumer(
-        'iot-stream','scada-stream','mes-stream',
-        bootstrap_servers=['localhost:9092'], auto_offset_reset='earliest', group_id='online-prod-time',
-        value_deserializer=lambda m: json.loads(m.decode('utf-8'))
-    )
-    print("Kafka consumer for production time regressor started on topics...")
-    for msg in consumer:
-        rec = msg.value
-        mid = rec['Machine_ID']
-        topic = msg.topic
-        if mid == "Machine_1":
-            print(f"Received message on {topic} for {mid}: {rec} for production time regressor")
-
-        if mid not in state:
-            state[mid] = {}
-            print(f"Initialized state for Machine_ID {mid} for production time regressor")
-
-        state[mid].update(rec)
-
-        # need raw fields to derive features
-        raw = state[mid]
-        if all(k in raw for k in ['Temperature_C','Vibration_mm_s','Pressure_bar',
-                                  'Power_Consumption_kW','Machine_Status','Alarm_Code',
-                                  'Units_Produced','Defective_Units','Production_Time_min']):
-            # compute features
-            defect_rate = raw['Defective_Units']/raw['Units_Produced']
-            throughput  = raw['Units_Produced']/raw['Production_Time_min']
-            energy_eff  = (raw['Power_Consumption_kW']*(raw['Production_Time_min']/60))/raw['Units_Produced']
-            feats = np.array([
-                en_machine.transform([mid])[0], raw['Temperature_C'], raw['Vibration_mm_s'], raw['Pressure_bar'],
-                raw['Power_Consumption_kW'], en_status.transform([raw['Machine_Status']])[0],
-                en_alarm.transform([raw['Alarm_Code']])[0], defect_rate, throughput, energy_eff
-            ]).reshape(1,-1)
-
-            # predictions
-            pred = round(reg.predict(feats)[0])
-            pred2 = round(reg2.predict(scaler.transform(feats))[0])
-            pred3 = round(reg3.predict(feats)[0])
-
-            # print(f"event:: {topic} {mid} pred_units={pu:.0f}, pred_defect={pd_:.0f}, pred_time={pt:.0f}")
-
-            # y_true = raw['Production_Time_min']
-            y_true = state[mid]['Production_Time_min']
-            if topic == 'mes-stream' and 'Production_Time_min' in raw:
-                y_true = raw['Production_Time_min']
-                print(f"event:: {topic} Updated model for {mid} with true production_time: {y_true} as received in mes event")
-
-            reg.partial_fit(feats, [y_true])
-            reg2.partial_fit(scaler.transform(feats), [y_true])
-            # for reg3, step into the pipeline
-            scaled_feats = reg3.named_steps['standardscaler'].transform(feats)
-            reg3.named_steps['sgdregressor'].partial_fit(scaled_feats, [y_true])
-
-            if mid == "Machine_1":
-                print(f"event:: {topic} Model updated for {mid} with production_time={y_true}, with pred1={pred}, pred2={pred2}, pred3={pred3}")
-        persist_all()
-
-threading.Thread(target=kafka_consumer_loop, daemon=True).start()
+# def kafka_consumer_loop():
+#     consumer = KafkaConsumer(
+#         'iot-stream','scada-stream','mes-stream',
+#         bootstrap_servers=['localhost:9092'], auto_offset_reset='earliest', group_id='online-prod-time',
+#         value_deserializer=lambda m: json.loads(m.decode('utf-8'))
+#     )
+#     print("Kafka consumer for production time regressor started on topics...")
+#     for msg in consumer:
+#         rec = msg.value
+#         mid = rec['Machine_ID']
+#         topic = msg.topic
+#         if mid == "Machine_1":
+#             print(f"Received message on {topic} for {mid}: {rec} for production time regressor")
+#
+#         if mid not in state:
+#             state[mid] = {}
+#             print(f"Initialized state for Machine_ID {mid} for production time regressor")
+#
+#         state[mid].update(rec)
+#
+#         # need raw fields to derive features
+#         raw = state[mid]
+#         if all(k in raw for k in ['Temperature_C','Vibration_mm_s','Pressure_bar',
+#                                   'Power_Consumption_kW','Machine_Status','Alarm_Code',
+#                                   'Units_Produced','Defective_Units','Production_Time_min']):
+#             # compute features
+#             defect_rate = raw['Defective_Units']/raw['Units_Produced']
+#             throughput  = raw['Units_Produced']/raw['Production_Time_min']
+#             energy_eff  = (raw['Power_Consumption_kW']*(raw['Production_Time_min']/60))/raw['Units_Produced']
+#             feats = np.array([
+#                 en_machine.transform([mid])[0], raw['Temperature_C'], raw['Vibration_mm_s'], raw['Pressure_bar'],
+#                 raw['Power_Consumption_kW'], en_status.transform([raw['Machine_Status']])[0],
+#                 en_alarm.transform([raw['Alarm_Code']])[0], defect_rate, throughput, energy_eff
+#             ]).reshape(1,-1)
+#
+#             # predictions
+#             pred = round(reg.predict(feats)[0])
+#             pred2 = round(reg2.predict(scaler.transform(feats))[0])
+#             pred3 = round(reg3.predict(feats)[0])
+#
+#             # print(f"event:: {topic} {mid} pred_units={pu:.0f}, pred_defect={pd_:.0f}, pred_time={pt:.0f}")
+#
+#             # y_true = raw['Production_Time_min']
+#             y_true = raw['Production_Time_min']
+#             if topic == 'mes-stream' and 'Production_Time_min' in rec:
+#                 y_true = rec['Production_Time_min']
+#                 print(f"event:: {topic} Updated model for {mid} with true production_time: {y_true} as received in mes event")
+#
+#             reg.partial_fit(feats, [y_true])
+#             reg2.partial_fit(scaler.transform(feats), [y_true])
+#             # for reg3, step into the pipeline
+#             scaled_feats = reg3.named_steps['standardscaler'].transform(feats)
+#             reg3.named_steps['sgdregressor'].partial_fit(scaled_feats, [y_true])
+#
+#             if mid == "Machine_1":
+#                 print(f"event:: {topic} Model updated for {mid} with production_time={y_true}, with pred1={pred}, pred2={pred2}, pred3={pred3}")
+#         persist_all()
+#
+# threading.Thread(target=kafka_consumer_loop, daemon=True).start()
 
 # ----------------------------------------
 # 3. REST API for on-demand forecast

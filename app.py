@@ -1,15 +1,16 @@
 import numpy as np
 from fastapi import FastAPI
 import uvicorn
+import threading
 from pydantic import BaseModel
 
-from models.status_alarm_model import state as status_alarm_state
+# from models.status_alarm_model import state as status_alarm_state
 from models.status_alarm_model import en_machine as status_alarm_en_machine
 from models.status_alarm_model import en_status as status_alarm_en_status
 from models.status_alarm_model import en_alarm as status_alarm_en_alarm
 from models.status_alarm_model import status_clf, alarm_clf
 
-from models.power_consumption_model import state as power_state
+# from models.power_consumption_model import state as power_state
 from models.power_consumption_model import en_machine as power_en_machine
 from models.power_consumption_model import en_status as power_en_status
 from models.power_consumption_model import en_alarm as power_en_alarm
@@ -18,7 +19,7 @@ from models.power_consumption_model import reg2 as power_reg2
 from models.power_consumption_model import reg3 as power_reg3
 from models.power_consumption_model import scaler as power_scaler
 
-from models.units_prod_model import state as units_prod_state
+# from models.units_prod_model import state as units_prod_state
 from models.units_prod_model import en_machine as units_prod_en_machine
 from models.units_prod_model import en_status as units_prod_en_status
 from models.units_prod_model import en_alarm as units_prod_en_alarm
@@ -27,7 +28,7 @@ from models.units_prod_model import reg2 as units_prod_reg2
 from models.units_prod_model import reg3 as units_prod_reg3
 from models.units_prod_model import scaler as units_prod_scaler
 
-from models.defective_units_model import state as defective_units_state
+# from models.defective_units_model import state as defective_units_state
 from models.defective_units_model import en_machine as def_units_en_machine
 from models.defective_units_model import en_status as def_units_en_status
 from models.defective_units_model import en_alarm as def_units_en_alarm
@@ -36,7 +37,7 @@ from models.defective_units_model import reg2 as def_units_reg2
 from models.defective_units_model import reg3 as def_units_reg3
 from models.defective_units_model import scaler as def_units_scaler
 
-from models.prod_time_model import state as prod_time_state
+# from models.prod_time_model import state as prod_time_state
 from models.prod_time_model import en_machine as prod_time_en_machine
 from models.prod_time_model import en_status as prod_time_en_status
 from models.prod_time_model import en_alarm as prod_time_en_alarm
@@ -44,6 +45,8 @@ from models.prod_time_model import reg as prod_time_reg
 from models.prod_time_model import reg2 as prod_time_reg2
 from models.prod_time_model import reg3 as prod_time_reg3
 from models.prod_time_model import scaler as prod_time_scaler
+
+from kafka_consumer_loop import state, kafka_consumer_loop
 
 app = FastAPI()
 
@@ -209,6 +212,8 @@ def forecast_production_time(req: ForecastRequest):
         result = {'Machine_ID': mid, 'Predicted_Production_Time_min': pred2, "current":prod_time_state[mid]['Production_Time_min'],
                   "additional_predictions":{"pred1":pred, "pred2": pred2, "pred3": pred3}}
     return result
+
+threading.Thread(target=kafka_consumer_loop, daemon=True, name='KafkaConsumer').start()
 
 if __name__ == '__main__':
     print("Starting FastAPI app on port 8000...")
