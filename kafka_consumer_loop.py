@@ -88,11 +88,11 @@ def kafka_consumer_loop():
         if mid == "Machine_1":
             print(f"event:: {topic} state for {mid} post updates as {state[mid]}")
 
-        # process_status_alarm_style(rec, mid, topic)
-        # process_power_consumption_style(rec, mid, topic)
-        # process_units_prod_style(rec, mid, topic)
-        # process_defective_units_style(rec, mid, topic)
-        # process_production_time_style(rec, mid, topic)
+        process_status_alarm_style(rec, mid, topic)
+        process_power_consumption_style(rec, mid, topic)
+        process_units_prod_style(rec, mid, topic)
+        process_defective_units_style(rec, mid, topic)
+        process_production_time_style(rec, mid, topic)
 
         with open(STATE_PATH, 'wb') as f:
             pickle.dump(state, f)
