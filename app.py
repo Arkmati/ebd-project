@@ -4,13 +4,11 @@ import uvicorn
 import threading
 from pydantic import BaseModel
 
-# from models.status_alarm_model import state as status_alarm_state
 from models.status_alarm_model import en_machine as status_alarm_en_machine
 from models.status_alarm_model import en_status as status_alarm_en_status
 from models.status_alarm_model import en_alarm as status_alarm_en_alarm
 from models.status_alarm_model import status_clf, alarm_clf
 
-# from models.power_consumption_model import state as power_state
 from models.power_consumption_model import en_machine as power_en_machine
 from models.power_consumption_model import en_status as power_en_status
 from models.power_consumption_model import en_alarm as power_en_alarm
@@ -19,7 +17,6 @@ from models.power_consumption_model import reg2 as power_reg2
 from models.power_consumption_model import reg3 as power_reg3
 from models.power_consumption_model import scaler as power_scaler
 
-# from models.units_prod_model import state as units_prod_state
 from models.units_prod_model import en_machine as units_prod_en_machine
 from models.units_prod_model import en_status as units_prod_en_status
 from models.units_prod_model import en_alarm as units_prod_en_alarm
@@ -28,7 +25,6 @@ from models.units_prod_model import reg2 as units_prod_reg2
 from models.units_prod_model import reg3 as units_prod_reg3
 from models.units_prod_model import scaler as units_prod_scaler
 
-# from models.defective_units_model import state as defective_units_state
 from models.defective_units_model import en_machine as def_units_en_machine
 from models.defective_units_model import en_status as def_units_en_status
 from models.defective_units_model import en_alarm as def_units_en_alarm
@@ -37,7 +33,6 @@ from models.defective_units_model import reg2 as def_units_reg2
 from models.defective_units_model import reg3 as def_units_reg3
 from models.defective_units_model import scaler as def_units_scaler
 
-# from models.prod_time_model import state as prod_time_state
 from models.prod_time_model import en_machine as prod_time_en_machine
 from models.prod_time_model import en_status as prod_time_en_status
 from models.prod_time_model import en_alarm as prod_time_en_alarm
@@ -71,9 +66,7 @@ def forecast_status(req: ForecastRequest):
         ]).reshape(1, -1)
         ps = status_clf.predict_proba(feats)[0]
         status = status_alarm_en_status.inverse_transform([np.argmax(ps)])[0]
-        # results.append({'Machine_ID': mid, 'Machine_Status': status, 'Alarm_Code': alarm})
         results = {'Machine_ID': mid, 'Machine_Status': status, 'current': state[mid]['Machine_Status']}
-        # for ts in times:
         print(f"Forecast_status generated for {req.machine_id} with status {status}")
     return results
 
@@ -95,9 +88,7 @@ def forecast_alarm(req: ForecastRequest):
         ]).reshape(1, -1)
         pa = alarm_clf.predict_proba(feats)[0]
         alarm = status_alarm_en_alarm.inverse_transform([np.argmax(pa)])[0]
-        # results.append({'Machine_ID': mid, 'Machine_Status': status, 'Alarm_Code': alarm})
         results = {'Machine_ID': mid, 'Alarm_Code': alarm, "current": state[mid]['Alarm_Code']}
-        # for ts in times:
         print(f"Forecast_alarm generated for {req.machine_id} with alarm {alarm}")
     return results
 
@@ -128,7 +119,7 @@ def forecast_power(req: ForecastRequest):
         pred2 = round(power_reg2.predict(power_scaler.transform(feats))[0], 2)
         pred3 = round(power_reg3.predict(feats)[0], 2)
         print(f"Forecast_power generated for {req.machine_id} with power value: {pred:.2f}")
-        result = {'Machine_ID': mid, 'Predicted_Power_kW': float(pred), "current":state[mid]['Power_Consumption_kW'],
+        result = {'Machine_ID': mid, 'Predicted_Power_kW': float(pred2), "current":state[mid]['Power_Consumption_kW'],
                   "additional_predictions":{"pred1":pred, "pred2": pred2, "pred3": pred3}}
     return result
 
@@ -182,8 +173,8 @@ def forecast_defective_units(req: ForecastRequest):
         pred2 = round(def_units_reg2.predict(def_units_scaler.transform(feats))[0])
         pred3 = round(def_units_reg3.predict(feats)[0])
         print(f"Forecast_defective_units produced generated for {req.machine_id} with predicted value: {pred2}")
-        result = {'Machine_ID': mid, 'Predicted_Defective_Units': pred2, "current":state[mid]['Defective_Units'],
-                  "additional_predictions":{"pred1":pred, "pred2": pred2, "pred3": pred3}}
+        result = {'Machine_ID': mid, 'Predicted_Defective_Units': pred2, "current":state[mid]['Defective_Units']}
+                  # "additional_predictions":{"pred1":pred, "pred2": pred2, "pred3": pred3}}
     return result
 
 @app.post('/forecast-production-time')

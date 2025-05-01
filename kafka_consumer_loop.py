@@ -53,9 +53,9 @@ def load_state(path):
     if os.path.exists(path):
         with open(path, 'rb') as f:
             st = pickle.load(f)
-        print(f"Loaded persisted state ({len(st)} machines) for power consumption regressor")
+        print(f"Loaded persisted state ({len(st)} machines)")
         return st
-    print("Init empty state buffer for power consumption regressor")
+    print("Init empty state buffer")
     return {}
 
 state = load_state(STATE_PATH)
@@ -68,28 +68,19 @@ def kafka_consumer_loop():
         group_id='online-processor',
         value_deserializer=lambda m: json.loads(m.decode('utf-8'))
     )
-    print("Kafka consumer for power consumption regressor started on topics: iot-stream, scada-stream, mes-stream")
+    print("Kafka consumer started on topics: iot-stream, scada-stream, mes-stream")
     for msg in consumer:
         rec = msg.value
         mid = rec['Machine_ID']
         topic = msg.topic
-        if mid == "Machine_1":
-            print(f"Received message on {topic} for {mid}: {rec} for power consumption regressor")
-        # print(f"Received message on {topic} for {mid}: {rec}")
         if mid not in state:
             state[mid] = {}
-            print(f"Initialized state for Machine_ID {mid} for power consumption regressor")
+            print(f"Initialized state for Machine_ID {mid}")
 
         if "Alarm_Code" in rec and rec['Alarm_Code'] == "":
             rec['Alarm_Code'] = "None"
 
-        # if mid == "Machine_1":
-        #     print(f"event:: {topic} state for {mid} before updates as {state[mid]}")
-
         state[mid].update(rec)
-
-        # if mid == "Machine_1":
-        #     print(f"event:: {topic} state for {mid} post updates as {state[mid]}")
 
         process_status_alarm_style(rec, mid, topic)
         process_power_consumption_style(rec, mid, topic)
@@ -99,7 +90,6 @@ def kafka_consumer_loop():
 
         with open(STATE_PATH, 'wb') as f:
             pickle.dump(state, f)
-        ##
 
 def process_status_alarm_style(record, mid, topic):
     print(f"{topic} :: {mid} Processing for status and alarm model part")
