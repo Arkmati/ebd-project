@@ -92,7 +92,5 @@ print("Status and Alarm Classifier initialization complete.")
 def persist_all():
     joblib.dump(status_clf, STATUS_MODEL_PATH)
     joblib.dump(alarm_clf, ALARM_MODEL_PATH)
-    # with open(STATE_PATH, 'wb') as f:
-    #     pickle.dump(state, f)
     print("Persisted classifiers and state for status and alarm forecaster.")
 
