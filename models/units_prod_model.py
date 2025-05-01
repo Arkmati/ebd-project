@@ -148,8 +148,6 @@ def improve_performance_of_models(passes):
     evaluate_model_performance(passes)
     print(f"After doing additional {passes} passes on the models")
 
-improve_performance_of_models(N_EPOCHS)
-
 def persist_all():
     joblib.dump(reg, UNITS_PROD_MODEL_PATH)
     joblib.dump(scaler, SCALAR2_PATH)

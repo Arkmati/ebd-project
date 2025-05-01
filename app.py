@@ -173,8 +173,8 @@ def forecast_defective_units(req: ForecastRequest):
         pred2 = round(def_units_reg2.predict(def_units_scaler.transform(feats))[0])
         pred3 = round(def_units_reg3.predict(feats)[0])
         print(f"Forecast_defective_units produced generated for {req.machine_id} with predicted value: {pred2}")
-        result = {'Machine_ID': mid, 'Predicted_Defective_Units': pred2, "current":state[mid]['Defective_Units']}
-                  # "additional_predictions":{"pred1":pred, "pred2": pred2, "pred3": pred3}}
+        result = {'Machine_ID': mid, 'Predicted_Defective_Units': pred2, "current":state[mid]['Defective_Units'],
+                  "additional_predictions":{"pred1":pred, "pred2": pred2, "pred3": pred3}}
     return result
 
 @app.post('/forecast-production-time')
