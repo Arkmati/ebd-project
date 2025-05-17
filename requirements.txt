@@ -1,0 +1,17 @@
+numpy
+fastapi
+uvicorn
+threading
+pydantic
+json
+time
+threading
+pandas
+kafka-python3
+os
+joblib
+sklearn
+typing
+kafka-python
+pickle
+datetime

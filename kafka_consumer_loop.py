@@ -64,8 +64,8 @@ def kafka_consumer_loop():
     consumer = KafkaConsumer(
         'iot-stream', 'scada-stream', 'mes-stream',
         bootstrap_servers=['localhost:9092'],
-        auto_offset_reset='earliest',
-        group_id='online-processor',
+        auto_offset_reset='latest',
+        group_id='online-process',
         value_deserializer=lambda m: json.loads(m.decode('utf-8'))
     )
     print("Kafka consumer started on topics: iot-stream, scada-stream, mes-stream")
@@ -106,31 +106,26 @@ def process_status_alarm_style(record, mid, topic):
             state[mid]['Vibration_mm_s'],
             state[mid]['Pressure_bar']
         ]).reshape(1, -1)
-        # print(f"Performing inference for {mid} with features {feats.flatten()}")
+        print(f"Performing inference for {mid} with features {feats.flatten()}")
+
         ps = status_clf.predict_proba(feats)[0]
         pa = alarm_clf.predict_proba(feats)[0]
         pred_status = status_alarm_en_status.inverse_transform([np.argmax(ps)])[0]
         pred_alarm = status_alarm_en_alarm.inverse_transform([np.argmax(pa)])[0]
-        # print(f"Predicted for {mid}: Status={pred_status}, Alarm={pred_alarm}")
+        print(f"Predicted for {mid}: Status={pred_status}, Alarm={pred_alarm}")
 
         status_y = state[mid]['Machine_Status']
         alarm_y = state[mid]['Alarm_Code']
-        # print(f"Fetched statues {status_y} and alarm {alarm_y}")
         if "Machine_Status" in record and "Alarm_Code" in record:
             # Update the model with the true labels
             status_y = record['Machine_Status']
             alarm_y = record['Alarm_Code']
-            # print(f"latest values taken from kafka message as status {status_y} and alarm {alarm_y}")
 
         y_s = status_alarm_en_status.transform([status_y])[0]
         y_a = status_alarm_en_alarm.transform([alarm_y])[0]
         status_clf.partial_fit(feats, [y_s])
         alarm_clf.partial_fit(feats, [y_a])
-        # print(f"Model updated for {mid} with Status={status_y} and Alarm={alarm_y}")
-        if mid == "Machine_1":
-            print(
-                f"event:: {topic} Model updated for {mid} with Status={status_y} and Alarm={alarm_y}, with predicted values: Status={pred_status}, Alarm={pred_alarm}")
-
+        print(f"Model updated for {mid} with Status={status_y} and Alarm={alarm_y}")
     status_alarm_persist_all()
 
 def process_power_consumption_style(rec, mid, topic):
@@ -152,13 +147,13 @@ def process_power_consumption_style(rec, mid, topic):
             state[mid]['Units_Produced'] / state[mid]['Production_Time_min'],
             state[mid]['Defective_Units'] / state[mid]['Units_Produced']
         ]).reshape(1, -1)
-        # print(f"Performing inference for {mid} with features {feats.flatten()}")
+        print(f"Performing inference for {mid} with features {feats.flatten()}")
 
         # predict next power
         pred = round(power_reg.predict(feats)[0], 2)
         pred2 = round(power_reg2.predict(power_scaler.transform(feats))[0], 2)
         pred3 = round(power_reg3.predict(feats)[0], 2)
-        # print(f"event:: {topic} Predicted next power for {mid}: {pred:.2f} kW")
+        print(f"event:: {topic} Predicted next power for {mid}: where pred1={pred}, pred2={pred2}, pred3={pred3} kW")
 
         y_true = state[mid]['Power_Consumption_kW']
         if topic == 'scada-stream' and 'Power_Consumption_kW' in rec:
@@ -171,8 +166,6 @@ def process_power_consumption_style(rec, mid, topic):
         scaled_feats = power_reg3.named_steps['standardscaler'].transform(feats)
         power_reg3.named_steps['sgdregressor'].partial_fit(scaled_feats, [y_true])
 
-        if mid == "Machine_1":
-            print(f"event:: {topic} Model updated for {mid} with power={y_true}, with pred1={pred}, pred2={pred2}, pred3={pred3}")
     power_consumption_persist_all()
 
 def process_units_prod_style(record, mid, topic):
@@ -181,7 +174,6 @@ def process_units_prod_style(record, mid, topic):
     if all(k in raw for k in ['Temperature_C', 'Vibration_mm_s', 'Pressure_bar',
                               'Power_Consumption_kW', 'Machine_Status', 'Alarm_Code',
                               'Units_Produced', 'Defective_Units', 'Production_Time_min']):
-        # compute features
         defect_rate = raw['Defective_Units'] / raw['Units_Produced']
         throughput = raw['Units_Produced'] / raw['Production_Time_min']
         energy_eff = (raw['Power_Consumption_kW'] * (raw['Production_Time_min'] / 60)) / raw['Units_Produced']
@@ -191,28 +183,21 @@ def process_units_prod_style(record, mid, topic):
             units_prod_en_alarm.transform([raw['Alarm_Code']])[0], defect_rate, throughput, energy_eff
         ]).reshape(1, -1)
 
-        # predictions
         pred = round(units_prod_reg.predict(feats)[0])
         pred2 = round(units_prod_reg2.predict(units_prod_scaler.transform(feats))[0])
         pred3 = round(units_prod_reg3.predict(feats)[0])
-
-        # print(f"event:: {topic} {mid} pred_units={pu:.0f}, pred_defect={pd_:.0f}, pred_time={pt:.0f}")
+        print(f"event:: {topic} Predicted next units produced count for {mid}: where pred1={pred}, pred2={pred2}, pred3={pred3}")
 
         y_true = raw['Units_Produced']
         if topic == 'mes-stream' and 'Units_Produced' in record:
             y_true = record['Units_Produced']
-            print(
-                f"event:: {topic} Updated model for {mid} with true units_produced: {y_true} as received in mes event")
+            print(f"event:: {topic} Updated model for {mid} with true units_produced: {y_true} as received in mes event")
 
         units_prod_reg.partial_fit(feats, [y_true])
         units_prod_reg2.partial_fit(units_prod_scaler.transform(feats), [y_true])
-        # for reg3, step into the pipeline
         scaled_feats = units_prod_reg3.named_steps['standardscaler'].transform(feats)
         units_prod_reg3.named_steps['sgdregressor'].partial_fit(scaled_feats, [y_true])
 
-        if mid == "Machine_1":
-            print(
-                f"event:: {topic} Model updated for {mid} with units_produced={y_true}, with pred1={pred}, pred2={pred2}, pred3={pred3}")
     units_prod_persist_all()
 
 def process_defective_units_style(record, mid, topic):
@@ -221,7 +206,6 @@ def process_defective_units_style(record, mid, topic):
     if all(k in raw for k in ['Temperature_C', 'Vibration_mm_s', 'Pressure_bar',
                               'Power_Consumption_kW', 'Machine_Status', 'Alarm_Code',
                               'Units_Produced', 'Defective_Units', 'Production_Time_min']):
-        # compute features
         defect_rate = raw['Defective_Units'] / raw['Units_Produced']
         throughput = raw['Units_Produced'] / raw['Production_Time_min']
         energy_eff = (raw['Power_Consumption_kW'] * (raw['Production_Time_min'] / 60)) / raw['Units_Produced']
@@ -231,28 +215,21 @@ def process_defective_units_style(record, mid, topic):
             def_units_en_alarm.transform([raw['Alarm_Code']])[0], defect_rate, throughput, energy_eff
         ]).reshape(1, -1)
 
-        # predictions
         pred = round(def_units_reg.predict(feats)[0])
         pred2 = round(def_units_reg2.predict(def_units_scaler.transform(feats))[0])
         pred3 = round(def_units_reg3.predict(feats)[0])
-
-        # print(f"event:: {topic} {mid} pred_units={pu:.0f}, pred_defect={pd_:.0f}, pred_time={pt:.0f}")
+        print(f"event:: {topic} Predicted next defective units produced count for {mid}: where pred1={pred}, pred2={pred2}, pred3={pred3}")
 
         y_true = raw['Defective_Units']
         if topic == 'mes-stream' and 'Defective_Units' in record:
             y_true = record['Defective_Units']
-            print(
-                f"event:: {topic} Updated model for {mid} with true defective_units: {y_true} as received in mes event")
+            print(f"event:: {topic} Updated model for {mid} with true defective_units: {y_true} as received in mes event")
 
         def_units_reg.partial_fit(feats, [y_true])
         def_units_reg2.partial_fit(def_units_scaler.transform(feats), [y_true])
-        # for reg3, step into the pipeline
         scaled_feats = def_units_reg3.named_steps['standardscaler'].transform(feats)
         def_units_reg3.named_steps['sgdregressor'].partial_fit(scaled_feats, [y_true])
 
-        if mid == "Machine_1":
-            print(
-                f"event:: {topic} Model updated for {mid} with defective_units={y_true}, with pred1={pred}, pred2={pred2}, pred3={pred3}")
     def_units_persist_all()
 
 def process_production_time_style(record, mid, topic):
@@ -261,7 +238,6 @@ def process_production_time_style(record, mid, topic):
     if all(k in raw for k in ['Temperature_C', 'Vibration_mm_s', 'Pressure_bar',
                               'Power_Consumption_kW', 'Machine_Status', 'Alarm_Code',
                               'Units_Produced', 'Defective_Units', 'Production_Time_min']):
-        # compute features
         defect_rate = raw['Defective_Units'] / raw['Units_Produced']
         throughput = raw['Units_Produced'] / raw['Production_Time_min']
         energy_eff = (raw['Power_Consumption_kW'] * (raw['Production_Time_min'] / 60)) / raw['Units_Produced']
@@ -271,26 +247,19 @@ def process_production_time_style(record, mid, topic):
             prod_time_en_alarm.transform([raw['Alarm_Code']])[0], defect_rate, throughput, energy_eff
         ]).reshape(1, -1)
 
-        # predictions
         pred = round(prod_time_reg.predict(feats)[0])
         pred2 = round(prod_time_reg2.predict(prod_time_scaler.transform(feats))[0])
         pred3 = round(prod_time_reg3.predict(feats)[0])
-
-        # print(f"event:: {topic} {mid} pred_units={pu:.0f}, pred_defect={pd_:.0f}, pred_time={pt:.0f}")
+        print(f"event:: {topic} Predicted next total production time for {mid}: where pred1={pred}, pred2={pred2}, pred3={pred3} mins")
 
         y_true = raw['Production_Time_min']
         if topic == 'mes-stream' and 'Production_Time_min' in record:
             y_true = record['Production_Time_min']
-            print(
-                f"event:: {topic} Updated model for {mid} with true production_time: {y_true} as received in mes event")
+            print(f"event:: {topic} Updated model for {mid} with true production_time: {y_true} as received in mes event")
 
         prod_time_reg.partial_fit(feats, [y_true])
         prod_time_reg2.partial_fit(prod_time_scaler.transform(feats), [y_true])
-        # for reg3, step into the pipeline
         scaled_feats = prod_time_reg3.named_steps['standardscaler'].transform(feats)
         prod_time_reg3.named_steps['sgdregressor'].partial_fit(scaled_feats, [y_true])
 
-        if mid == "Machine_1":
-            print(
-                f"event:: {topic} Model updated for {mid} with production_time={y_true}, with pred1={pred}, pred2={pred2}, pred3={pred3}")
     prod_time_persist_all()

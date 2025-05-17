@@ -4,7 +4,7 @@ import pandas as pd
 import numpy as np
 from sklearn.linear_model import SGDClassifier
 from sklearn.preprocessing import LabelEncoder
-
+from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, roc_auc_score
 
 MODEL_DIR = 'stored-models/status-alarm'
 STATUS_MODEL_PATH = os.path.join(MODEL_DIR, 'status_clf.pkl')
@@ -12,6 +12,8 @@ ALARM_MODEL_PATH  = os.path.join(MODEL_DIR, 'alarm_clf.pkl')
 ENC_MACHINE_PATH  = os.path.join(MODEL_DIR, 'en_machine.pkl')
 ENC_STATUS_PATH   = os.path.join(MODEL_DIR, 'en_status.pkl')
 ENC_ALARM_PATH    = os.path.join(MODEL_DIR, 'en_alarm.pkl')
+
+N_EPOCHS = 2000
 
 # ----------------------------------------
 print("Loading historical SCADA and IoT data for status and alarm classifiers...")
@@ -87,6 +89,52 @@ else:
     alarm_clf.partial_fit(X, y_alarm, classes=np.unique(y_alarm))
     joblib.dump(alarm_clf, ALARM_MODEL_PATH)
 print("Status and Alarm Classifier initialization complete.")
+
+
+def evaluate_alarm_model_performance(num_passes):
+    print(f"Evaluating model performance on training data for alarm code classifier where number of passes={num_passes}...")
+    alarm_pred_labels = alarm_clf.predict(X)
+    alarm_pred_proba = alarm_clf.predict_proba(X)
+
+    accuracy = accuracy_score(y_alarm, alarm_pred_labels)
+    precision = precision_score(y_alarm, alarm_pred_labels, average='weighted', zero_division=0)
+    recall = recall_score(y_alarm, alarm_pred_labels, average='weighted', zero_division=0)
+    f1 = f1_score(y_alarm, alarm_pred_labels, average='weighted', zero_division=0)
+
+    auc = roc_auc_score(y_alarm, alarm_pred_proba, multi_class='ovr')
+
+    print(f"Alarm code classifier alarm_clf -> Accuracy: {accuracy:.4f}, Precision: {precision:.4f}, Recall: {recall:.4f}, F1-Score: {f1:.4f}, "
+        f"AUC-ROC (OvR): {auc:.4f} when number of passes={num_passes}")
+
+def evaluate_status_model_performance(num_passes):
+    print(f"Evaluating model performance on training data for machine status classifier where number of passes={num_passes}...")
+    status_pred_labels = status_clf.predict(X)
+    status_pred_proba = status_clf.predict_proba(X)
+
+    accuracy = accuracy_score(y_status, status_pred_labels)
+    precision = precision_score(y_status, status_pred_labels, average='weighted', zero_division=0)
+    recall = recall_score(y_status, status_pred_labels, average='weighted', zero_division=0)
+    f1 = f1_score(y_status, status_pred_labels, average='weighted', zero_division=0)
+
+    auc = roc_auc_score(y_status, status_pred_proba, multi_class='ovr')
+
+    print(f"Machine status classifier status_clf -> Accuracy: {accuracy:.4f}, Precision: {precision:.4f}, Recall: {recall:.4f}, F1-Score: {f1:.4f}, "
+        f"AUC-ROC (OvR): {auc:.4f} when number of passes={num_passes}")
+
+evaluate_alarm_model_performance(1)
+evaluate_status_model_performance(1)
+
+def improve_performance_of_models(passes):
+    print(f"Starting doing additional {passes} passes on the models")
+    for _ in range(passes):
+        alarm_clf.partial_fit(X, y_alarm)
+        status_clf.partial_fit(X, y_status)
+
+    evaluate_alarm_model_performance(passes)
+    evaluate_status_model_performance(passes)
+    print(f"After doing additional {passes} passes on the models")
+
+improve_performance_of_models(N_EPOCHS)
 
 
 def persist_all():

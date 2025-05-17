@@ -1,19 +1,10 @@
-import threading
-import json
 import os
-from datetime import datetime
 import pandas as pd
-import numpy as np
 import joblib
-import pickle
 from sklearn.linear_model import SGDRegressor
 from sklearn.preprocessing import LabelEncoder, StandardScaler
 from sklearn.pipeline import make_pipeline
 from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
-from kafka3 import KafkaConsumer
-from fastapi import FastAPI, HTTPException
-import uvicorn
-from pydantic import BaseModel
 
 MODEL_DIR           = 'stored-models/def-units'
 DEF_UNITS_MODEL_PATH    = os.path.join(MODEL_DIR, 'def_units_reg.pkl')
@@ -150,113 +141,11 @@ def improve_performance_of_models(passes):
     evaluate_model_performance(passes)
     print(f"After doing additional {passes} passes on the models")
 
+improve_performance_of_models(N_EPOCHS)
+
 def persist_all():
     joblib.dump(reg, DEF_UNITS_MODEL_PATH)
     joblib.dump(scaler, SCALAR2_PATH)
     joblib.dump(reg2, DEF_UNITS_MODEL2_PATH)
     joblib.dump(reg3, DEF_UNITS_PIPELINE_PATH)
     print("Persisted all models and state for defective units regressor")
-
-
-
-
-
-
-
-
-# def kafka_consumer_loop():
-#     consumer = KafkaConsumer(
-#         'iot-stream','scada-stream','mes-stream',
-#         bootstrap_servers=['localhost:9092'], auto_offset_reset='earliest', group_id='online-def-units',
-#         value_deserializer=lambda m: json.loads(m.decode('utf-8'))
-#     )
-#     print("Kafka consumer for defective units regressor started on topics...")
-#     for msg in consumer:
-#         rec = msg.value
-#         mid = rec['Machine_ID']
-#         topic = msg.topic
-#         if mid == "Machine_1":
-#             print(f"Received message on {topic} for {mid}: {rec} for defective units regressor")
-#
-#         if mid not in state:
-#             state[mid] = {}
-#             print(f"Initialized state for Machine_ID {mid} for defective units regressor")
-#
-#         state[mid].update(rec)
-#
-#         # need raw fields to derive features
-#         raw = state[mid]
-#         if all(k in raw for k in ['Temperature_C','Vibration_mm_s','Pressure_bar',
-#                                   'Power_Consumption_kW','Machine_Status','Alarm_Code',
-#                                   'Units_Produced','Defective_Units','Production_Time_min']):
-#             # compute features
-#             defect_rate = raw['Defective_Units']/raw['Units_Produced']
-#             throughput  = raw['Units_Produced']/raw['Production_Time_min']
-#             energy_eff  = (raw['Power_Consumption_kW']*(raw['Production_Time_min']/60))/raw['Units_Produced']
-#             feats = np.array([
-#                 en_machine.transform([mid])[0], raw['Temperature_C'], raw['Vibration_mm_s'], raw['Pressure_bar'],
-#                 raw['Power_Consumption_kW'], en_status.transform([raw['Machine_Status']])[0],
-#                 en_alarm.transform([raw['Alarm_Code']])[0], defect_rate, throughput, energy_eff
-#             ]).reshape(1,-1)
-#
-#             # predictions
-#             pred = round(reg.predict(feats)[0])
-#             pred2 = round(reg2.predict(scaler.transform(feats))[0])
-#             pred3 = round(reg3.predict(feats)[0])
-#
-#             # print(f"event:: {topic} {mid} pred_units={pu:.0f}, pred_defect={pd_:.0f}, pred_time={pt:.0f}")
-#
-#             # y_true = raw['Defective_Units']
-#             y_true = raw['Defective_Units']
-#             if topic == 'mes-stream' and 'Defective_Units' in rec:
-#                 y_true = rec['Defective_Units']
-#                 print(f"event:: {topic} Updated model for {mid} with true defective_units: {y_true} as received in mes event")
-#
-#             reg.partial_fit(feats, [y_true])
-#             reg2.partial_fit(scaler.transform(feats), [y_true])
-#             # for reg3, step into the pipeline
-#             scaled_feats = reg3.named_steps['standardscaler'].transform(feats)
-#             reg3.named_steps['sgdregressor'].partial_fit(scaled_feats, [y_true])
-#
-#             if mid == "Machine_1":
-#                 print(f"event:: {topic} Model updated for {mid} with defective_units={y_true}, with pred1={pred}, pred2={pred2}, pred3={pred3}")
-#         persist_all()
-#
-# threading.Thread(target=kafka_consumer_loop, daemon=True).start()
-
-# ----------------------------------------
-# 3. REST API for on-demand forecast
-# ----------------------------------------
-# app = FastAPI()
-# class ForecastRequest(BaseModel):
-#     machine_id: str
-#
-# @app.post('/forecast-defective-units')
-# def forecast_power(req: ForecastRequest):
-#     mid = req.machine_id
-#     if mid not in state or not all(
-#        k in state[mid] for k in ['Temperature_C','Vibration_mm_s','Pressure_bar',
-#                                   'Power_Consumption_kW','Machine_Status','Alarm_Code',
-#                                   'Units_Produced','Defective_Units','Production_Time_min']):
-#         print(f"Missing state for {mid} for forecast defective units request")
-#         result = {'Machine_ID': mid, 'Predicted_Defective_Units': None}
-#     else:
-#         raw = state.get(mid)
-#         dr = raw['Defective_Units'] / raw['Units_Produced']
-#         th = raw['Units_Produced'] / raw['Production_Time_min']
-#         ee = (raw['Power_Consumption_kW'] * (raw['Production_Time_min'] / 60)) / raw['Units_Produced']
-#         feats = np.array([
-#             en_machine.transform([mid])[0], raw['Temperature_C'], raw['Vibration_mm_s'], raw['Pressure_bar'],
-#             raw['Power_Consumption_kW'], en_status.transform([raw['Machine_Status']])[0],
-#             en_alarm.transform([raw['Alarm_Code']])[0], dr, th, ee
-#         ]).reshape(1, -1)
-#         pred = round(reg.predict(feats)[0])
-#         pred2 = round(reg2.predict(scaler.transform(feats))[0])
-#         pred3 = round(reg3.predict(feats)[0])
-#         print(f"Forecast_defective_units produced generated for {req.machine_id} with predicted value: {pred2}")
-#         result = {'Machine_ID': mid, 'Predicted_Defective_Units': pred2, "current":state[mid]['Defective_Units'],
-#                   "additional_predictions":{"pred1":pred, "pred2": pred2, "pred3": pred3}}
-#     return result
-#
-# if __name__=='__main__':
-#     uvicorn.run(app, host='0.0.0.0', port=8000)
