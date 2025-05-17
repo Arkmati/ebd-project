@@ -11,9 +11,9 @@ MES_CSV = '../generated_data/future-stream-mes.csv'
 
 # Kafka settings
 BROKER_URL = 'localhost:9092'
-IOT_TOPIC = 'iot-stream'
-SCADA_TOPIC = 'scada-stream'
-MES_TOPIC = 'mes-stream'
+IOT_TOPIC = 'iot-data'
+SCADA_TOPIC = 'scada-data'
+MES_TOPIC = 'mes-data'
 
 
 def create_producer(broker_url: str) -> KafkaProducer:

@@ -62,7 +62,7 @@ state = load_state(STATE_PATH)
 
 def kafka_consumer_loop():
     consumer = KafkaConsumer(
-        'iot-stream', 'scada-stream', 'mes-stream',
+        'iot-data', 'scada-data', 'mes-data',
         bootstrap_servers=['localhost:9092'],
         auto_offset_reset='latest',
         group_id='online-process',
