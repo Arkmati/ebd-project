@@ -20,7 +20,7 @@ HIST_SCADA = 'generated_data/historical-scada.csv'
 HIST_IOT   = 'generated_data/historical-iot.csv'
 HIST_MES   = 'generated_data/historical-mes.csv'
 
-N_EPOCHS = 2000
+N_EPOCHS = 10
 
 # ----------------------------------------
 # 1. TRAINING: load data & bootstrap regressors

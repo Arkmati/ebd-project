@@ -20,7 +20,7 @@ HIST_SCADA = 'generated_data/historical-scada.csv'
 HIST_IOT   = 'generated_data/historical-iot.csv'
 HIST_MES   = 'generated_data/historical-mes.csv'
 
-N_EPOCHS = 2000
+N_EPOCHS = 10
 
 # ----------------------------------------
 # 1. TRAINING: load data & bootstrap regressors
@@ -138,7 +138,7 @@ def improve_performance_of_models(passes):
     evaluate_model_performance(passes)
     print(f"After doing additional {passes} passes on the models")
 
-improve_performance_of_models(2000)
+improve_performance_of_models(N_EPOCHS)
 
 def persist_all():
     joblib.dump(reg, UNITS_PROD_MODEL_PATH)

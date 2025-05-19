@@ -75,6 +75,7 @@ volumes:
   registry_data:
   minio_data:
 
+# we initially named our network kafka-nifi-net, as we were planning to use Nifi too.
 networks:
   kafka-nifi-net:
     external: true

@@ -13,7 +13,7 @@ ENC_MACHINE_PATH  = os.path.join(MODEL_DIR, 'en_machine.pkl')
 ENC_STATUS_PATH   = os.path.join(MODEL_DIR, 'en_status.pkl')
 ENC_ALARM_PATH    = os.path.join(MODEL_DIR, 'en_alarm.pkl')
 
-N_EPOCHS = 2000
+N_EPOCHS = 10
 
 # ----------------------------------------
 print("Loading historical SCADA and IoT data for status and alarm classifiers...")

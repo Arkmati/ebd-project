@@ -1,6 +1,16 @@
 version: '3.8'
 
 services:
+  nodered:
+    image: nodered/node-red:latest       # Official Node-RED image on Docker Hub
+    platform: linux/amd64
+    restart: unless-stopped              # Always restart unless explicitly stopped
+    ports:
+      - "1880:1880"                     # Map host port 1880 to container port 1880
+    volumes:
+      - ./.node-red:/data  # Bind mount your local flows & settings
+    networks:
+      - kafka-nifi-net
   opcua-server:
     build: ./opcua-server
     container_name: opcua-server
@@ -11,16 +21,6 @@ services:
       - ./opcua-server/future-stream-scada.csv:/app/future-stream-scada.csv:ro
     networks:
       - kafka-nifi-net
-  #  nodered:
-  #    image: nodered/node-red:latest       # Official Node-RED image on Docker Hub
-  #    platform: linux/amd64
-  #    restart: unless-stopped              # Always restart unless explicitly stopped
-  #    ports:
-  #      - "1880:1880"                     # Map host port 1880 to container port 1880
-  #    volumes:
-  #      - ./.node-red:/data  # Bind mount your local flows & settings
-  #    networks:
-  #      - kafka-nifi-net
 
 networks:
   kafka-nifi-net:
